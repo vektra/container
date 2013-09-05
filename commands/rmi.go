@@ -3,7 +3,7 @@ package commands
 import (
 	"flag"
 	"fmt"
-	"github.com/arch-reactor/components/container/env"
+	"github.com/arch-reactor/container/env"
 )
 
 func init() {

@@ -8,7 +8,7 @@ import (
 	"os"
 	"path"
 	"strings"
-  "github.com/arch-reactor/components/container/utils"
+  "github.com/arch-reactor/container/utils"
 )
 
 const DEFAULTTAG = "latest"

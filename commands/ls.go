@@ -2,7 +2,7 @@ package commands
 
 import (
 	"flag"
-	"github.com/arch-reactor/components/container/env"
+	"github.com/arch-reactor/container/env"
 	"os"
 	"os/exec"
 	"path"

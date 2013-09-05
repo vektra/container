@@ -2,8 +2,8 @@ package commands
 
 import (
 	"flag"
-	"github.com/arch-reactor/components/container/env"
-	"github.com/arch-reactor/components/container/utils"
+	"github.com/arch-reactor/container/env"
+	"github.com/arch-reactor/container/utils"
 	"os"
 	"os/signal"
 	"strings"

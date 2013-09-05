@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-  "github.com/arch-reactor/components/container/utils"
+  "github.com/arch-reactor/container/utils"
   "io/ioutil"
 )
 
