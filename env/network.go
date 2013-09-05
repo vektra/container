@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"github.com/arch-reactor/container/utils"
 	"io/ioutil"
 	"log"
 	"net"
@@ -14,7 +15,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-  "github.com/arch-reactor/container/utils"
 )
 
 const (

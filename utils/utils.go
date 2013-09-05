@@ -25,7 +25,6 @@ import (
 	"time"
 )
 
-
 func Run(cmd string, args ...string) {
 	c := exec.Command(cmd, args...)
 
@@ -36,8 +35,6 @@ func Run(cmd string, args ...string) {
 		panic(err)
 	}
 }
-
-
 
 func Subcmd(name, signature, description string) *flag.FlagSet {
 	flags := flag.NewFlagSet(name, flag.ContinueOnError)
@@ -788,4 +785,3 @@ func GetReleaseVersion() string {
 	}
 	return strings.TrimSpace(string(body))
 }
-

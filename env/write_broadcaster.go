@@ -1,13 +1,12 @@
 package env
 
 import (
-  "bytes"
-  "encoding/json"
-  "io"
-  "sync"
-  "time"
+	"bytes"
+	"encoding/json"
+	"io"
+	"sync"
+	"time"
 )
-
 
 type WriteBroadcaster struct {
 	sync.Mutex
@@ -77,4 +76,3 @@ func (w *WriteBroadcaster) CloseWriters() error {
 func NewWriteBroadcaster() *WriteBroadcaster {
 	return &WriteBroadcaster{writers: make(map[StreamWriter]bool), buf: bytes.NewBuffer(nil)}
 }
-

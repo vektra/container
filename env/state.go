@@ -40,7 +40,6 @@ func (s *State) setStopped(exitCode int) {
 	s.ExitCode = exitCode
 }
 
-
 // HumanDuration returns a human-readable approximation of a duration
 // (eg. "About a minute", "4 hours ago", etc.)
 func HumanDuration(d time.Duration) string {
@@ -65,4 +64,3 @@ func HumanDuration(d time.Duration) string {
 	}
 	return fmt.Sprintf("%f years", d.Hours()/24/365)
 }
-

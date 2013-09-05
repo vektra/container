@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/arch-reactor/container/utils"
 	"io/ioutil"
 	"os"
 	"path"
 	"strings"
-  "github.com/arch-reactor/container/utils"
 )
 
 const DEFAULTTAG = "latest"
@@ -198,7 +198,6 @@ func ParseRepositoryTag(repos string) (string, string) {
 	}
 	return repos, DEFAULTTAG
 }
-
 
 func ReadRepoFile(path string) (*TagStore, error) {
 	data, err := ioutil.ReadFile(path)

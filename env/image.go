@@ -28,9 +28,9 @@ type Image struct {
 }
 
 func (image *Image) WithPrimaryId(fn func(string)) {
-  if len(image.Ids) > 0 {
-    fn(image.Ids[0])
-  }
+	if len(image.Ids) > 0 {
+		fn(image.Ids[0])
+	}
 }
 
 func (image *Image) layers() ([]string, error) {
@@ -137,4 +137,3 @@ func SafelyExpandImageID(id string) (string, bool) {
 
 	return res, found
 }
-

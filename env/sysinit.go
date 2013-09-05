@@ -3,15 +3,15 @@ package env
 import (
 	"flag"
 	"fmt"
+	"github.com/arch-reactor/container/utils"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
-  "os/user"
+	"os/user"
 	"strconv"
 	"strings"
 	"syscall"
-  "github.com/arch-reactor/container/utils"
-  "io/ioutil"
 )
 
 // Setup networking

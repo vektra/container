@@ -3,13 +3,13 @@ package env
 import (
 	"encoding/binary"
 	"fmt"
+	"github.com/arch-reactor/container/utils"
 	"io"
 	"log"
 	"net"
 	"sync"
 	"syscall"
 	"time"
-  "github.com/arch-reactor/container/utils"
 )
 
 const (

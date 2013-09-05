@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/arch-reactor/container/utils"
 	"io"
 	"io/ioutil"
 	"net"
@@ -15,7 +16,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-  "github.com/arch-reactor/container/utils"
 )
 
 var sysInitPath string
@@ -23,7 +23,6 @@ var sysInitPath string
 func init() {
 	sysInitPath = SelfPath()
 }
-
 
 // Figure out the absolute path of our own binary
 func SelfPath() string {
@@ -194,7 +193,7 @@ func ContainerCreate(r *TagStore, config *Config) (*Container, error) {
 }
 
 func (container *Container) PathTo(fileName string) string {
-  return path.Join(container.root, fileName)
+	return path.Join(container.root, fileName)
 }
 
 func (container *Container) Commit(comment, author string, config *Config) (*Image, error) {
@@ -614,7 +613,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 }
 
 func (container *Container) Signal(sig os.Signal) {
-  container.cmd.Process.Signal(sig)
+	container.cmd.Process.Signal(sig)
 }
 
 // Returns a pointer to the first net.Addr on eth0, if it exists. Otherwise nil.
@@ -737,5 +736,3 @@ func (container *Container) SaveHostConfig(hostConfig *HostConfig) (err error) {
 	}
 	return ioutil.WriteFile(container.hostConfigPath(), data, 0666)
 }
-
-

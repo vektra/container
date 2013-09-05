@@ -1,13 +1,12 @@
 package env
 
 import (
-  "errors"
-  "fmt"
-  "io/ioutil"
-  "os"
-  "path"
+	"errors"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"path"
 )
-
 
 const DIR = "/var/lib/ar-container"
 
@@ -16,7 +15,6 @@ const RUN_DIR = "/var/run/ar-container"
 
 // When the container's data is initialized, it advertises by placing a file at INIT_DIR/$PID
 const INIT_DIR = "/var/run/ar-container/running"
-
 
 func Init() error { // Not auto-run on purpose.
 	paths := []string{RUN_DIR, INIT_DIR, path.Join(DIR, "graph"), path.Join(DIR, "containers")}
@@ -34,7 +32,5 @@ func Init() error { // Not auto-run on purpose.
 		}
 	}
 
-  return nil
+	return nil
 }
-
-

@@ -1,9 +1,8 @@
 package env
 
 import (
-  "strings"
+	"strings"
 )
-
 
 type ServiceSpec struct {
 	Name    string
@@ -179,4 +178,3 @@ func MergeConfig(userConf, imageConf *Config) {
 		}
 	}
 }
-
