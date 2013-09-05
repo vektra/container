@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	DefaultNetworkBridge = "docker0"
+	DefaultNetworkBridge = "golden0"
 	DisableNetworkBridge = "none"
 	portRangeStart       = 49153
 	portRangeEnd         = 65535
