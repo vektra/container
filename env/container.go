@@ -354,6 +354,12 @@ func (container *Container) Mount() error {
 }
 
 func Unmount(target string) error {
+	_, err := os.Stat(target)
+
+	if err != nil {
+		return err
+	}
+
 	if err := exec.Command("auplink", target, "flush").Run(); err != nil {
 		utils.Debugf("[warning]: couldn't run auplink before unmount: %s", err)
 	}
@@ -420,7 +426,7 @@ func (container *Container) allocateNetwork() error {
 	nm, err := newNetworkManager(DefaultNetworkBridge)
 
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	container.networkManager = nm
@@ -450,7 +456,17 @@ func (container *Container) allocateNetwork() error {
 	return nil
 }
 
+func (container *Container) cleanup() {
+	if !container.State.Running {
+		container.Unmount()
+		container.network.Release()
+		container.setStopped(0)
+	}
+}
+
 func (container *Container) Start(hostConfig *HostConfig) error {
+	defer container.cleanup()
+
 	if len(hostConfig.Binds) == 0 {
 		hostConfig, _ = container.ReadHostConfig()
 	}
@@ -525,7 +541,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 			} else {
 				n := strings.LastIndex(volPath, ":@")
 				if n < 0 {
-					panic("Manage your volumes better")
+					return fmt.Errorf("Invalid volume configuration: %s", volPath)
 				} else {
 					volName := path.Join(DIR, "volumes", volPath[n+2:])
 					volPath = volPath[0:n]
@@ -544,27 +560,6 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		}
 	}
 
-	/*
-		if container.Config.VolumesFrom != "" {
-			c := container.runtime.Get(container.Config.VolumesFrom)
-			if c == nil {
-				return fmt.Errorf("Container %s not found. Impossible to mount its volumes", container.ID)
-			}
-			for volPath, id := range c.Volumes {
-				if _, exists := container.Volumes[volPath]; exists {
-					return fmt.Errorf("The requested volume %s overlap one of the volume of the container %s", volPath, c.ID)
-				}
-				if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
-					return nil
-				}
-				container.Volumes[volPath] = id
-				if isRW, exists := c.VolumesRW[volPath]; exists {
-					container.VolumesRW[volPath] = isRW
-				}
-			}
-		}
-
-	*/
 	if err := container.generateLXCConfig(); err != nil {
 		return err
 	}

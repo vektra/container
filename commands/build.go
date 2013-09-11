@@ -38,6 +38,9 @@ type buildFile struct {
 	outImage   string
 	out        io.Writer
 	abort      chan os.Signal
+
+	// Use to be sure to cleanup when errors happen
+	saveContainer bool
 }
 
 func (b *buildFile) CmdFrom(name string) error {
@@ -59,7 +62,6 @@ func (b *buildFile) CmdMaintainer(name string) error {
 }
 
 func (b *buildFile) Start() error {
-	cmd := b.config.Cmd
 	b.config.Cmd = []string{"/bin/sh", "-c", "#(nop) START"}
 
 	b.config.Image = b.image
@@ -69,17 +71,6 @@ func (b *buildFile) Start() error {
 	if err != nil {
 		return err
 	}
-
-	// container.Path = "/bin/sh"
-	// container.Args = []string{"-c", "#{noop} START"}
-
-	// if err := container.Start(b.hostcfg); err != nil {
-	// return err
-	// }
-
-	// defer container.Wait(b.hostcfg)
-
-	b.config.Cmd = cmd
 
 	b.container = container
 
@@ -93,19 +84,6 @@ func (b *buildFile) CmdRun(args string) error {
 
 	b.container.Path = "/bin/sh"
 	b.container.Args = []string{"-c", args}
-
-	// config, _, _, err := ParseRun([]string{b.image, "/bin/sh", "-c", args}, nil)
-	// if err != nil {
-	// return err
-	// }
-
-	// cmd := b.config.Cmd
-	// b.config.Cmd = nil
-	// MergeConfig(b.config, config)
-
-	// defer func(cmd []string) { b.config.Cmd = cmd }(cmd)
-
-	// utils.Debugf("Command to be executed: %v", b.config.Cmd)
 
 	if err := b.container.Start(b.hostcfg); err != nil {
 		return err
@@ -365,61 +343,22 @@ func isURL(str string) bool {
 	return strings.HasPrefix(str, "http://") || strings.HasPrefix(str, "https://")
 }
 
-/*
-func (b *buildFile) run() (string, error) {
-	if b.image == "" {
-		return "", fmt.Errorf("Please provide a source image with `from` prior to run")
-	}
-	b.config.Image = b.image
-
-	var err error
-	c := b.container
-
-	if c == nil {
-		// Create the container and start it
-		c, err = b.builder.Create(b.config)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	b.tmpContainers[c.ID] = struct{}{}
-	fmt.Fprintf(b.out, " ---> Running in %s\n", utils.TruncateID(c.ID))
-
-	// override the entry point that may have been picked up from the base image
-	c.Path = b.config.Cmd[0]
-	c.Args = b.config.Cmd[1:]
-
-	//start the container
-	hostConfig := &env.HostConfig{}
-	if err := c.Start(hostConfig); err != nil {
-		return "", err
-	}
-
-	if b.verbose {
-		err := <-c.Attach(nil, nil, b.out, b.out)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	// Wait for it to finish
-	if ret := c.Wait(); ret != 0 {
-		return "", fmt.Errorf("The command %v returned a non-zero code: %d", b.config.Cmd, ret)
-	}
-
-	return c.ID, nil
-}
-*/
-
 var ErrAbort = fmt.Errorf("Aborted build")
 
-func (b *buildFile) Build(context string) (string, error) {
+func (b *buildFile) cleanup() {
+	if !b.saveContainer && b.container != nil {
+		b.container.Remove()
+	}
+}
+
+func (b *buildFile) Build(context string) error {
+	defer b.cleanup()
+
 	b.context = context
 
 	dockerfile, err := os.Open(path.Join(context, "Dockerfile"))
 	if err != nil {
-		return "", fmt.Errorf("Can't build a directory with no Dockerfile")
+		return fmt.Errorf("Can't build a directory with no Dockerfile")
 	}
 
 	file := bufio.NewReader(dockerfile)
@@ -431,7 +370,7 @@ func (b *buildFile) Build(context string) (string, error) {
 			if b.container != nil {
 				b.container.Remove()
 			}
-			return "", ErrAbort
+			return ErrAbort
 		default:
 			// continue
 		}
@@ -441,7 +380,7 @@ func (b *buildFile) Build(context string) (string, error) {
 			if err == io.EOF && line == "" {
 				break
 			} else if err != io.EOF {
-				return "", err
+				return err
 			}
 		}
 
@@ -453,7 +392,7 @@ func (b *buildFile) Build(context string) (string, error) {
 
 		tmp := strings.SplitN(line, " ", 2)
 		if len(tmp) != 2 {
-			return "", fmt.Errorf("Invalid Dockerfile format")
+			return fmt.Errorf("Invalid Dockerfile format")
 		}
 
 		instruction := strings.ToLower(strings.Trim(tmp[0], " "))
@@ -470,27 +409,27 @@ func (b *buildFile) Build(context string) (string, error) {
 
 		ret := method.Func.Call([]reflect.Value{reflect.ValueOf(b), reflect.ValueOf(arguments)})[0].Interface()
 		if ret != nil {
-			return "", ret.(error)
+			return ret.(error)
 		}
 	}
 
 	err = b.container.ToDisk()
 
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	if b.image != "" && b.outImage != "" {
 		img, err := b.container.Commit("", "", nil)
 
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		ts, err := env.DefaultTagStore()
 
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		repo, tag := env.ParseRepositoryTag(b.outImage)
@@ -499,45 +438,46 @@ func (b *buildFile) Build(context string) (string, error) {
 		ts.Flush()
 
 		fmt.Fprintf(b.out, "Built %s successfully\n", b.outImage)
-		b.container.Remove()
-		return "", nil
+		return nil
 	}
 
 	if b.image != "" {
+		b.saveContainer = true
 		fmt.Fprintf(b.out, "Successfully built %s\n", utils.TruncateID(b.container.ID))
-		return b.image, nil
+		return nil
 	}
 
-	return "", fmt.Errorf("An error occured during the build\n")
+	return fmt.Errorf("An error occured during the build\n")
 }
 
-func (b *buildFile) BuildTar(tar string) (string, error) {
+func (b *buildFile) BuildTar(tar string) error {
+	defer b.cleanup()
+
 	b.context = "/"
 
-	b.CmdFrom("")
-	err := b.CmdAdd(tar + " /")
-
-	if err != nil {
-		return "", err
+	if err := b.CmdFrom(""); err != nil {
+		return err
 	}
 
-	err = b.container.ToDisk()
+	if err := b.CmdAdd(tar + " /"); err != nil {
+		return err
+	}
 
-	if err != nil {
-		return "", err
+	if err := b.container.ToDisk(); err != nil {
+		return err
 	}
 
 	if b.outImage != "" {
 		img, err := b.container.Commit("", "", nil)
 
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		ts, err := env.DefaultTagStore()
 
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		repo, tag := env.ParseRepositoryTag(b.outImage)
@@ -547,11 +487,13 @@ func (b *buildFile) BuildTar(tar string) (string, error) {
 
 		fmt.Fprintf(b.out, "Built %s successfully\n", b.outImage)
 		b.container.Remove()
-		return "", nil
+		return nil
 	}
 
+	b.saveContainer = true
+
 	fmt.Fprintf(b.out, "Successfully built %s\n", utils.TruncateID(b.container.ID))
-	return "", nil
+	return nil
 }
 
 var flImage *string
@@ -586,9 +528,9 @@ func build(cmd *flag.FlagSet) {
 	}
 
 	if *flTar {
-		_, err = b.BuildTar(cmd.Arg(0))
+		err = b.BuildTar(cmd.Arg(0))
 	} else {
-		_, err = b.Build(cmd.Arg(0))
+		err = b.Build(cmd.Arg(0))
 	}
 
 	if err != nil && err != ErrAbort {
