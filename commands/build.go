@@ -70,14 +70,14 @@ func (b *buildFile) Start() error {
 		return err
 	}
 
-	container.Path = "/bin/sh"
-	container.Args = []string{"-c", "#{noop} START"}
+	// container.Path = "/bin/sh"
+	// container.Args = []string{"-c", "#{noop} START"}
 
-	if err := container.Start(b.hostcfg); err != nil {
-		return err
-	}
+	// if err := container.Start(b.hostcfg); err != nil {
+	// return err
+	// }
 
-	defer container.Wait(b.hostcfg)
+	// defer container.Wait(b.hostcfg)
 
 	b.config.Cmd = cmd
 
@@ -511,10 +511,56 @@ func (b *buildFile) Build(context string) (string, error) {
 	return "", fmt.Errorf("An error occured during the build\n")
 }
 
+func (b *buildFile) BuildTar(tar string) (string, error) {
+	b.context = "/"
+
+	b.CmdFrom("")
+	err := b.CmdAdd(tar + " /")
+
+	if err != nil {
+		return "", err
+	}
+
+	err = b.container.ToDisk()
+
+	if err != nil {
+		return "", err
+	}
+
+	if b.outImage != "" {
+		img, err := b.container.Commit("", "", nil)
+
+		if err != nil {
+			panic(err)
+		}
+
+		ts, err := env.DefaultTagStore()
+
+		if err != nil {
+			panic(err)
+		}
+
+		repo, tag := env.ParseRepositoryTag(b.outImage)
+
+		ts.Add(repo, tag, img.ID)
+		ts.Flush()
+
+		fmt.Fprintf(b.out, "Built %s successfully\n", b.outImage)
+		b.container.Remove()
+		return "", nil
+	}
+
+	fmt.Fprintf(b.out, "Successfully built %s\n", utils.TruncateID(b.container.ID))
+	return "", nil
+}
+
 var flImage *string
+var flTar *bool
 
 func init() {
-	cmd := addCommand("build", "[OPTIONS] <dir>", "Build a container or image from a Dockerfile", 1, build)
+	cmd := addCommand("build", "[OPTIONS] <dir|tar>", "Build a container or image from a Dockerfile", 1, build)
+
+	flTar = cmd.Bool("t", false, "Create an image from a tar.gz or directory")
 
 	flImage = cmd.String("i", "", "Image repo[:tag] to save the output as")
 }
@@ -539,7 +585,11 @@ func build(cmd *flag.FlagSet) {
 		abort:    abort,
 	}
 
-	_, err = b.Build(cmd.Arg(0))
+	if *flTar {
+		_, err = b.BuildTar(cmd.Arg(0))
+	} else {
+		_, err = b.Build(cmd.Arg(0))
+	}
 
 	if err != nil && err != ErrAbort {
 		panic(err)

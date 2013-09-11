@@ -36,6 +36,11 @@ func (image *Image) WithPrimaryId(fn func(string)) {
 func (image *Image) layers() ([]string, error) {
 
 	os.MkdirAll(path.Join(DIR, "graph", "_init"), 0755)
+	os.MkdirAll(path.Join(DIR, "graph", "_init", "proc"), 0755)
+	os.MkdirAll(path.Join(DIR, "graph", "_init", "dev"), 0755)
+	os.MkdirAll(path.Join(DIR, "graph", "_init", "dev", "pts"), 0755)
+	os.MkdirAll(path.Join(DIR, "graph", "_init", "sys"), 0755)
+	os.MkdirAll(path.Join(DIR, "graph", "_init", "etc"), 0755)
 
 	f, err := os.Create(path.Join(DIR, "graph", "_init", ".dockerinit"))
 
@@ -45,13 +50,23 @@ func (image *Image) layers() ([]string, error) {
 
 	f.Close()
 
+	f, err = os.Create(path.Join(DIR, "graph", "_init", "etc", "resolv.conf"))
+
+	if err != nil {
+		panic(err)
+	}
+
+	f.Close()
+
 	var layers []string
 
-	cur := image
+	if image.ID != "" {
+		cur := image
 
-	for cur != nil {
-		layers = append(layers, path.Join(DIR, "graph", cur.ID, "layer"))
-		cur = cur.parentImage
+		for cur != nil {
+			layers = append(layers, path.Join(DIR, "graph", cur.ID, "layer"))
+			cur = cur.parentImage
+		}
 	}
 
 	layers = append(layers, path.Join(DIR, "graph", "_init"))
@@ -88,7 +103,13 @@ func MountAUFS(ro []string, rw string, target string) error {
 	for _, layer := range ro {
 		roBranches += fmt.Sprintf("%v=ro+wh:", layer)
 	}
-	branches := fmt.Sprintf("br:%v:%v", rwBranch, roBranches)
+	var branches string
+
+	if roBranches == "" {
+		branches = "br:" + rwBranch
+	} else {
+		branches = fmt.Sprintf("br:%v:%v", rwBranch, roBranches)
+	}
 
 	branches += ",xino=/dev/shm/aufs.xino"
 

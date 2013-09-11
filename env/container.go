@@ -99,14 +99,21 @@ func ContainerCreate(r *TagStore, config *Config) (*Container, error) {
 		return nil, fmt.Errorf("Memory limit must be given in bytes (minimum 524288 bytes)")
 	}
 
-	// Lookup image
-	img, err := r.LookupImage(config.Image)
-	if err != nil {
-		return nil, err
-	}
+	var err error
+	var img *Image
 
-	if img.Config != nil {
-		MergeConfig(config, img.Config)
+	if config.Image == "" {
+		img = &Image{}
+	} else {
+		// Lookup image
+		img, err = r.LookupImage(config.Image)
+		if err != nil {
+			return nil, err
+		}
+
+		if img.Config != nil {
+			MergeConfig(config, img.Config)
+		}
 	}
 
 	if len(config.Entrypoint) != 0 && config.Cmd == nil {
