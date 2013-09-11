@@ -405,6 +405,13 @@ func (container *Container) GetImage() (*Image, error) {
 	return container.imageO, nil
 }
 
+const defaultHosts = `127.0.0.1	localhost
+::1		localhost ip6-localhost ip6-loopback
+fe00::0		ip6-localnet
+ff00::0		ip6-mcastprefix
+ff02::1		ip6-allnodes
+ff02::2		ip6-allrouters`
+
 func (container *Container) allocateNetwork() error {
 	if container.Config.NetworkDisabled {
 		return nil
@@ -560,6 +567,16 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	*/
 	if err := container.generateLXCConfig(); err != nil {
 		return err
+	}
+
+	// Update /etc/hosts in the container to have an etc/hosts entry
+	// for itself.
+	hosts := defaultHosts + "\n127.0.0.1\t" + container.Config.Hostname + "\n"
+	os.MkdirAll(path.Join(container.rwPath(), "etc"), 0755)
+	err := ioutil.WriteFile(path.Join(container.rwPath(), "etc/hosts"), []byte(hosts), 0644)
+
+	if err != nil {
+		fmt.Printf("error writing hosts file: %s\n", err)
 	}
 
 	params := []string{
