@@ -17,24 +17,37 @@ func nukeImage(id string) {
 		panic(err)
 	}
 
-	repo, tag := env.ParseRepositoryTag(id)
-
-	if !ts.RemoveTag(repo, tag) {
-		fmt.Printf("Unable to find repo '%s'\n", id)
-		return
-	}
-
 	img, err := ts.LookupImage(id)
 
 	if err == nil {
+		repo, tag := env.ParseRepositoryTag(id)
+		ts.RemoveTag(repo, tag)
+	} else {
+		long := env.ExpandImageID(id)
+
+		var ok bool
+		img, ok = ts.Entries[long]
+
+		if !ok {
+			fmt.Printf("Unable to find repo '%s'\n", id)
+			return
+		} else {
+			err = nil
+		}
+	}
+
+	if img != nil {
 		otherRepo, _ := ts.Find(img.ID)
 
 		if otherRepo != "" {
 			fmt.Printf("Removing %s tag on %s only\n", id, utils.TruncateID(img.ID))
 		} else {
 			fmt.Printf("Nuking image %s..\n", id)
-			os.RemoveAll(path.Join(env.DIR, "graph", img.ID))
+			img.Remove()
 		}
+	} else {
+		fmt.Printf("Error locating image: %s\n", err)
+		return
 	}
 
 	ts.Flush()

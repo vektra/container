@@ -89,6 +89,17 @@ func (image *Image) layers() ([]string, error) {
 	return layers, nil
 }
 
+func (image *Image) Remove() error {
+	lpfs := path.Join(DIR, "graph", image.ID, "layer.fs")
+
+	if _, err := os.Stat(lpfs); err == nil {
+		lp := path.Join(DIR, "graph", image.ID, "layer")
+		utils.RunUnchecked("umount", lp)
+	}
+
+	return os.RemoveAll(path.Join(DIR, "graph", image.ID))
+}
+
 func (image *Image) Mount(root, rw string) error {
 	if mounted, err := Mounted(root); err != nil {
 		return err
