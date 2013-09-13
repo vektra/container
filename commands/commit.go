@@ -9,12 +9,14 @@ import (
 
 var flAuthor *string
 var flComment *string
+var flComSquash *bool
 
 func init() {
 	cmd := addCommand("commit", "[OPTIONS] <id> <image>[:<tag>]",
 		"Convert a container to an image", 2, commit)
 	flAuthor = cmd.String("author", "", "Who is creating this image")
 	flComment = cmd.String("comment", "", "Any comment?")
+	flComSquash = cmd.Bool("s", false, "Make a squashfs based image")
 }
 
 func commit(cmd *flag.FlagSet) {
@@ -33,7 +35,7 @@ func commit(cmd *flag.FlagSet) {
 		panic(err)
 	}
 
-	img, err := cont.Commit(*flComment, *flAuthor, nil)
+	img, err := cont.Commit(*flComment, *flAuthor, nil, *flComSquash)
 
 	if err != nil {
 		fmt.Printf("Unable to create image: %s\n", err)

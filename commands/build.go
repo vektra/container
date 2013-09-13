@@ -41,6 +41,7 @@ type buildFile struct {
 
 	// Use to be sure to cleanup when errors happen
 	saveContainer bool
+	squash        bool
 }
 
 func (b *buildFile) CmdFrom(name string) error {
@@ -420,7 +421,7 @@ func (b *buildFile) Build(context string) error {
 	}
 
 	if b.image != "" && b.outImage != "" {
-		img, err := b.container.Commit("", "", nil)
+		img, err := b.container.Commit("", "", nil, b.squash)
 
 		if err != nil {
 			return err
@@ -468,7 +469,7 @@ func (b *buildFile) BuildTar(tar string) error {
 	}
 
 	if b.outImage != "" {
-		img, err := b.container.Commit("", "", nil)
+		img, err := b.container.Commit("", "", nil, b.squash)
 
 		if err != nil {
 			return err
@@ -498,6 +499,7 @@ func (b *buildFile) BuildTar(tar string) error {
 
 var flImage *string
 var flTar *bool
+var flSquash *bool
 
 func init() {
 	cmd := addCommand("build", "[OPTIONS] <dir|tar>", "Build a container or image from a Dockerfile", 1, build)
@@ -505,6 +507,8 @@ func init() {
 	flTar = cmd.Bool("t", false, "Create an image from a tar.gz or directory")
 
 	flImage = cmd.String("i", "", "Image repo[:tag] to save the output as")
+
+	flSquash = cmd.Bool("s", false, "Make a squashfs image")
 }
 
 func build(cmd *flag.FlagSet) {
@@ -525,6 +529,7 @@ func build(cmd *flag.FlagSet) {
 		verbose:  true,
 		outImage: *flImage,
 		abort:    abort,
+		squash:   *flSquash,
 	}
 
 	if *flTar {

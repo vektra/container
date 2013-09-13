@@ -36,6 +36,11 @@ func Run(cmd string, args ...string) {
 	}
 }
 
+func RunUnchecked(cmd string, args ...string) ([]byte, error) {
+	c := exec.Command(cmd, args...)
+	return c.CombinedOutput()
+}
+
 func Subcmd(name, signature, description string) *flag.FlagSet {
 	flags := flag.NewFlagSet(name, flag.ContinueOnError)
 	flags.Usage = func() {

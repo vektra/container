@@ -2,6 +2,7 @@ package env
 
 import (
 	"fmt"
+	"github.com/arch-reactor/container/utils"
 	"io/ioutil"
 	"log"
 	"os"
@@ -34,7 +35,6 @@ func (image *Image) WithPrimaryId(fn func(string)) {
 }
 
 func (image *Image) layers() ([]string, error) {
-
 	os.MkdirAll(path.Join(DIR, "graph", "_init"), 0755)
 	os.MkdirAll(path.Join(DIR, "graph", "_init", "proc"), 0755)
 	os.MkdirAll(path.Join(DIR, "graph", "_init", "dev"), 0755)
@@ -45,7 +45,7 @@ func (image *Image) layers() ([]string, error) {
 	f, err := os.Create(path.Join(DIR, "graph", "_init", ".dockerinit"))
 
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	f.Close()
@@ -53,7 +53,7 @@ func (image *Image) layers() ([]string, error) {
 	f, err = os.Create(path.Join(DIR, "graph", "_init", "etc", "resolv.conf"))
 
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	f.Close()
@@ -64,7 +64,23 @@ func (image *Image) layers() ([]string, error) {
 		cur := image
 
 		for cur != nil {
-			layers = append(layers, path.Join(DIR, "graph", cur.ID, "layer"))
+			lp := path.Join(DIR, "graph", cur.ID, "layer")
+
+			os.MkdirAll(lp, 0755)
+
+			lst, _ := ioutil.ReadDir(lp)
+
+			if len(lst) == 0 {
+				lpfs := path.Join(DIR, "graph", cur.ID, "layer.fs")
+
+				if _, err := os.Stat(lpfs); err == nil {
+					utils.Run("mount", lpfs, lp)
+				} else {
+					return nil, fmt.Errorf("No layer.fs file to mount")
+				}
+			}
+
+			layers = append(layers, lp)
 			cur = cur.parentImage
 		}
 	}

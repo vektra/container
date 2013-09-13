@@ -203,7 +203,7 @@ func (container *Container) PathTo(fileName string) string {
 	return path.Join(container.root, fileName)
 }
 
-func (container *Container) Commit(comment, author string, config *Config) (*Image, error) {
+func (container *Container) Commit(comment, author string, config *Config, squash bool) (*Image, error) {
 
 	if config == nil {
 		config = container.Config
@@ -227,14 +227,21 @@ func (container *Container) Commit(comment, author string, config *Config) (*Ima
 
 	os.MkdirAll(root, 0755)
 
-	tarbz2 := path.Join(root, "layer.tar.bz2")
 	layerPath := path.Join(root, "layer")
 
 	os.MkdirAll(layerPath, 0700)
 
-	utils.Run("tar", "--numeric-owner", "-cjf", tarbz2, "-C", container.rwPath(), ".")
+	if squash {
+		layerFs := path.Join(root, "layer.fs")
 
-	utils.Run("tar", "-xjvf", tarbz2, "-C", layerPath)
+		utils.Run("mksquashfs", container.rwPath(), layerFs, "-comp", "xz")
+	} else {
+		tarbz2 := path.Join(root, "layer.tar.bz2")
+
+		utils.Run("tar", "--numeric-owner", "-cjf", tarbz2, "-C", container.rwPath(), ".")
+
+		utils.Run("tar", "-xjvf", tarbz2, "-C", layerPath)
+	}
 
 	jsonData, err := json.Marshal(img)
 
