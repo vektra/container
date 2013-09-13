@@ -7,6 +7,7 @@ import (
 	"github.com/arch-reactor/container/utils"
 	"os"
 	"path"
+	"sort"
 	"text/tabwriter"
 )
 
@@ -34,8 +35,28 @@ func images(cmd *flag.FlagSet) {
 	w := tabwriter.NewWriter(os.Stdout, 20, 1, 3, ' ', 0)
 	fmt.Fprintf(w, "REPO\tTAG\tID\n")
 
-	for repo, tags := range ts.Repositories {
-		for tag, id := range tags {
+	var repos []string
+
+	for repo, _ := range ts.Repositories {
+		repos = append(repos, repo)
+	}
+
+	sort.Strings(repos)
+
+	for _, repo := range repos {
+		tags := ts.Repositories[repo]
+
+		var stags []string
+
+		for tag, _ := range tags {
+			stags = append(stags, tag)
+		}
+
+		sort.Strings(stags)
+
+		for _, tag := range stags {
+			id := tags[tag]
+
 			fmt.Fprintf(w, "%s\t%s\t%s\n", repo, tag, utils.TruncateID(id))
 		}
 	}
