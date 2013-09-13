@@ -16,6 +16,8 @@ const RUN_DIR = "/var/run/ar-container"
 // When the container's data is initialized, it advertises by placing a file at INIT_DIR/$PID
 const INIT_DIR = "/var/run/ar-container/running"
 
+const GLOBAL_VARS = "/etc/ar-container/variables"
+
 func Init() error { // Not auto-run on purpose.
 	paths := []string{RUN_DIR, INIT_DIR, path.Join(DIR, "graph"), path.Join(DIR, "containers")}
 	for _, dir := range paths {

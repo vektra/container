@@ -623,6 +623,16 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		params = append(params, "-e", elem)
 	}
 
+	list, err := ioutil.ReadDir(GLOBAL_VARS)
+
+	if err == nil {
+		for _, f := range list {
+			if v, e := ioutil.ReadFile(path.Join(GLOBAL_VARS, f.Name())); e == nil {
+				params = append(params, "-e", f.Name()+"="+strings.TrimSpace(string(v)))
+			}
+		}
+	}
+
 	// Program
 	params = append(params, "--", container.Path)
 	params = append(params, container.Args...)
