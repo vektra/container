@@ -2,6 +2,7 @@ package commands
 
 import (
 	"flag"
+	"fmt"
 	"github.com/arch-reactor/container/env"
 	"github.com/arch-reactor/container/utils"
 	"os"
@@ -79,7 +80,8 @@ func runContainer(cmd *flag.FlagSet) {
 	container, err := env.ContainerCreate(tags, config)
 
 	if err != nil {
-		panic(err)
+		fmt.Printf("Unable to create container: %s\n", err)
+		return
 	}
 
 	c := make(chan os.Signal, 1)

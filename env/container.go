@@ -466,7 +466,11 @@ func (container *Container) allocateNetwork() error {
 func (container *Container) cleanup() {
 	if !container.State.Running {
 		container.Unmount()
-		container.network.Release()
+
+		if container.network != nil {
+			container.network.Release()
+		}
+
 		container.setStopped(0)
 	}
 }

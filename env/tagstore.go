@@ -18,8 +18,8 @@ type Entries map[string]*Image
 type Repository map[string]string
 
 type TagStore struct {
-	Path         string
-	Entries      Entries
+	Path         string  `json:"-"`
+	Entries      Entries `json:"-"`
 	Repositories map[string]Repository
 }
 
@@ -79,13 +79,13 @@ func (store *TagStore) LookupImage(name string) (*Image, error) {
 	tags, ok := store.Repositories[repoName]
 
 	if !ok {
-		return nil, fmt.Errorf("No repo")
+		return nil, fmt.Errorf("No repo '%s'", repoName)
 	}
 
 	id, ok := tags[tag]
 
 	if !ok {
-		return nil, fmt.Errorf("No repo")
+		return nil, fmt.Errorf("No tag '%s' for repo '%s'", tag, repoName)
 	}
 
 	img, ok := store.Entries[id]
