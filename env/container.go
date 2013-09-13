@@ -80,6 +80,7 @@ type HostConfig struct {
 	ContainerIDFile string
 	Save            bool
 	Quiet           bool
+	EnvDir          string
 }
 
 type BindMap struct {
@@ -484,7 +485,8 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	defer container.cleanup()
 
 	if len(hostConfig.Binds) == 0 {
-		hostConfig, _ = container.ReadHostConfig()
+		c, _ := container.ReadHostConfig()
+		hostConfig.Binds = c.Binds
 	}
 
 	if container.State.Running {
@@ -629,6 +631,20 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		for _, f := range list {
 			if v, e := ioutil.ReadFile(path.Join(GLOBAL_VARS, f.Name())); e == nil {
 				params = append(params, "-e", f.Name()+"="+strings.TrimSpace(string(v)))
+			}
+		}
+	}
+
+	if hostConfig.EnvDir != "" {
+		list, err := ioutil.ReadDir(hostConfig.EnvDir)
+
+		if err == nil {
+			for _, f := range list {
+				p := path.Join(hostConfig.EnvDir, f.Name())
+
+				if v, e := ioutil.ReadFile(p); e == nil {
+					params = append(params, "-e", f.Name()+"="+strings.TrimSpace(string(v)))
+				}
 			}
 		}
 	}

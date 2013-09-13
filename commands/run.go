@@ -28,6 +28,7 @@ var flDns utils.ListOpts
 var flVolumes utils.PathOpts
 var flSave *bool
 var flEntrypoint *string
+var flEnvDir *string
 
 func init() {
 	cmd := addCommand("run", "[OPTIONS] <image> [<command>] [<args>...]", "Run a command in a new container", 1, runContainer)
@@ -42,6 +43,8 @@ func init() {
 	cmd.Var(&flPorts, "p", "Expose a container's port to the host (use 'docker port' to see the actual mapping)")
 
 	cmd.Var(&flEnv, "e", "Set environment variables")
+
+	flEnvDir = cmd.String("envdir", "", "Load environment variables from an envdir")
 
 	cmd.Var(&flDns, "dns", "Set custom dns servers")
 
@@ -159,6 +162,7 @@ func ParseRun(cmd *flag.FlagSet, capabilities *env.Capabilities) (*env.Config, *
 		Binds:           binds,
 		ContainerIDFile: *flContainerIDFile,
 		Save:            *flSave,
+		EnvDir:          *flEnvDir,
 	}
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.SwapLimit {
