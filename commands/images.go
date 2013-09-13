@@ -19,11 +19,11 @@ func images(cmd *flag.FlagSet) {
 	var repoDir string
 	if len(cmd.Args()) > 0 {
 		repoDir = cmd.Arg(0)
+		fmt.Printf("Loading tag store from: %s\n", repoDir)
 	} else {
 		repoDir = env.DIR
 	}
 
-	fmt.Printf("Loading tag store from: %s.\n", repoDir)
 	// TODO(kev): Don't hardcode file name
 	ts, err := env.ReadRepoFile(path.Join(repoDir, "repositories"))
 

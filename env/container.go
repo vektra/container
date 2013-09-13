@@ -217,11 +217,12 @@ func (container *Container) Commit(comment, author string, config *Config, squas
 		Comment:         comment,
 		Created:         time.Now(),
 		ContainerConfig: *container.Config,
-		DockerVersion:   "0.5.2",
 		Author:          author,
 		Config:          config,
 		Architecture:    "x86_64",
 	}
+
+	logv("Creating image %s", utils.TruncateID(img.ID))
 
 	root := path.Join(DIR, "graph", "_armktmp")
 
@@ -234,9 +235,13 @@ func (container *Container) Commit(comment, author string, config *Config, squas
 	if squash {
 		layerFs := path.Join(root, "layer.fs")
 
+		logv("Generating squashfs...")
+
 		utils.Run("mksquashfs", container.rwPath(), layerFs, "-comp", "xz")
 	} else {
 		tarbz2 := path.Join(root, "layer.tar.bz2")
+
+		logv("Generating tar.bz2...")
 
 		utils.Run("tar", "--numeric-owner", "-cjf", tarbz2, "-C", container.rwPath(), ".")
 

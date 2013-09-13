@@ -34,3 +34,17 @@ func Init() error { // Not auto-run on purpose.
 
 	return nil
 }
+
+var Verbose bool
+
+func init() {
+	Verbose = os.Getenv("VERBOSE") != ""
+}
+
+func logv(s string, a ...interface{}) {
+	if !Verbose {
+		return
+	}
+
+	fmt.Printf("[*] "+s+"\n", a...)
+}
