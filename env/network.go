@@ -30,6 +30,7 @@ type NetworkSettings struct {
 	IPAddress   string
 	IPPrefixLen int
 	Gateway     string
+	Gateway6    string
 	Bridge      string
 	PortMapping map[string]PortMapping
 }
@@ -223,6 +224,33 @@ func getIfaceAddr(name string) (net.Addr, error) {
 			name, (addrs4[0].(*net.IPNet)).IP)
 	}
 	return addrs4[0], nil
+}
+
+func getIfaceAddr6(name string) (net.Addr, error) {
+	iface, err := net.InterfaceByName(name)
+	if err != nil {
+		return nil, err
+	}
+	addrs, err := iface.Addrs()
+	if err != nil {
+		return nil, err
+	}
+	var addrs6 []net.Addr
+	for _, addr := range addrs {
+		ip := (addr.(*net.IPNet)).IP
+		if ip4 := ip.To4(); ip4 == nil {
+			addrs6 = append(addrs6, addr)
+		}
+	}
+
+	switch {
+	case len(addrs6) == 0:
+		return nil, fmt.Errorf("Interface %v has no IP addresses", name)
+	case len(addrs6) > 1:
+		fmt.Printf("Interface %v has more than 1 IPv6 address. Defaulting to using %v\n",
+			name, (addrs6[0].(*net.IPNet)).IP)
+	}
+	return addrs6[0], nil
 }
 
 // Port mapper takes care of mapping external ports to containers by setting
@@ -565,8 +593,9 @@ func newNetAllocator(network *net.IPNet) *NetAllocator {
 
 // Network interface represents the networking stack of a container
 type NetworkInterface struct {
-	IPNet   net.IPNet
-	Gateway net.IP
+	IPNet    net.IPNet
+	Gateway  net.IP
+	Gateway6 net.IP
 
 	manager  *NetworkManager
 	extPorts []*Nat
@@ -700,8 +729,9 @@ func (iface *NetworkInterface) Release() {
 // Network Manager manages a set of network interfaces
 // Only *one* manager per host machine should be used
 type NetworkManager struct {
-	bridgeIface   string
-	bridgeNetwork *net.IPNet
+	bridgeIface    string
+	bridgeNetwork  *net.IPNet
+	bridgeNetwork6 *net.IPNet
 
 	ipAllocator *NetAllocator
 	portMapper  *PortMapper
@@ -721,9 +751,10 @@ func (manager *NetworkManager) Allocate() (*NetworkInterface, error) {
 		return nil, err
 	}
 	iface := &NetworkInterface{
-		IPNet:   net.IPNet{IP: ip, Mask: manager.bridgeNetwork.Mask},
-		Gateway: manager.bridgeNetwork.IP,
-		manager: manager,
+		IPNet:    net.IPNet{IP: ip, Mask: manager.bridgeNetwork.Mask},
+		Gateway:  manager.bridgeNetwork.IP,
+		Gateway6: manager.bridgeNetwork6.IP,
+		manager:  manager,
 	}
 	return iface, nil
 }
@@ -750,6 +781,12 @@ func newNetworkManager(bridgeIface string) (*NetworkManager, error) {
 	}
 	network := addr.(*net.IPNet)
 
+	addr6, err := getIfaceAddr6(bridgeIface)
+
+	if err != nil {
+		addr6 = nil
+	}
+
 	ipAllocator := newNetAllocator(network)
 
 	portMapper, err := newPortMapper()
@@ -758,10 +795,11 @@ func newNetworkManager(bridgeIface string) (*NetworkManager, error) {
 	}
 
 	manager := &NetworkManager{
-		bridgeIface:   bridgeIface,
-		bridgeNetwork: network,
-		ipAllocator:   ipAllocator,
-		portMapper:    portMapper,
+		bridgeIface:    bridgeIface,
+		bridgeNetwork:  network,
+		bridgeNetwork6: addr6.(*net.IPNet),
+		ipAllocator:    ipAllocator,
+		portMapper:     portMapper,
 	}
 	return manager, nil
 }

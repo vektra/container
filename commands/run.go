@@ -84,7 +84,7 @@ func runContainer(cmd *flag.FlagSet) {
 
 	if err != nil {
 		fmt.Printf("Unable to create container: %s\n", err)
-		return
+		os.Exit(1)
 	}
 
 	c := make(chan os.Signal, 1)
@@ -98,7 +98,9 @@ func runContainer(cmd *flag.FlagSet) {
 	err = container.Start(hostcfg)
 
 	if err != nil {
-		panic(err)
+		container.Remove()
+		fmt.Printf("Unable to start container: %s\n", err)
+		os.Exit(1)
 	}
 
 	container.Wait(hostcfg)

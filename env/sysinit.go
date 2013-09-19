@@ -24,6 +24,15 @@ func setupNetworking(gw string) {
 	}
 }
 
+func setupNetworking6(gw string) {
+	if gw == "" {
+		return
+	}
+	if _, err := ip("route", "add", "default", "via", gw, "dev", "eth0"); err != nil {
+		log.Fatalf("Unable to set up networking: %v", err)
+	}
+}
+
 // Takes care of dropping privileges to the desired user
 func changeUser(u string) {
 	if u == "" {
@@ -108,6 +117,7 @@ func SysInit() {
 	}
 	var u = flag.String("u", "", "username or uid")
 	var gw = flag.String("g", "", "gateway address")
+	var gw6 = flag.String("g6", "", "ipv6 gateway address")
 
 	var flEnv utils.ListOpts
 	flag.Var(&flEnv, "e", "Set environment variables")
@@ -116,6 +126,7 @@ func SysInit() {
 
 	cleanupEnv(flEnv)
 	setupNetworking(*gw)
+	setupNetworking6(*gw6)
 	changeUser(*u)
 	executeProgram(flag.Arg(0), flag.Args())
 }

@@ -602,6 +602,7 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 	// Networking
 	if !container.Config.NetworkDisabled {
 		params = append(params, "-g", container.network.Gateway.String())
+		params = append(params, "-g6", container.network.Gateway6.String())
 	}
 
 	// User
