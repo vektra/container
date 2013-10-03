@@ -35,6 +35,19 @@ func Run(cmd string, args ...string) {
 	}
 }
 
+func Shell(cmd string) {
+	c := exec.Command("sh", "-c", cmd)
+	c.Stdout = os.Stdout
+	c.Stderr = os.Stderr
+
+	err := c.Run()
+
+	if err != nil {
+		fmt.Printf("Error running '%s'\n", cmd)
+		panic(err)
+	}
+}
+
 func RunUnchecked(cmd string, args ...string) ([]byte, error) {
 	c := exec.Command(cmd, args...)
 	return c.CombinedOutput()

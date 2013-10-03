@@ -29,6 +29,7 @@ var flVolumes utils.PathOpts
 var flSave *bool
 var flEntrypoint *string
 var flEnvDir *string
+var flTool *bool
 
 func init() {
 	cmd := addCommand("run", "[OPTIONS] <image> [<command>] [<args>...]", "Run a command in a new container", 1, runContainer)
@@ -54,6 +55,8 @@ func init() {
 	flEntrypoint = cmd.String("entrypoint", "", "Overwrite the default entrypoint of the image")
 
 	flSave = cmd.Bool("save", false, "Save the container when it exits")
+
+	flTool = cmd.Bool("t", false, "Run a provided tool")
 }
 
 func runContainer(cmd *flag.FlagSet) {
@@ -129,14 +132,29 @@ func ParseRun(cmd *flag.FlagSet, capabilities *env.Capabilities) (*env.Config, *
 	runCmd := []string{}
 	entrypoint := []string{}
 	image := ""
+
 	if len(parsedArgs) >= 1 {
 		image = cmd.Arg(0)
 	}
+
 	if len(parsedArgs) > 1 {
 		runCmd = parsedArgs[1:]
 	}
+
 	if *flEntrypoint != "" {
 		entrypoint = []string{*flEntrypoint}
+	}
+
+	if *flTool {
+		if len(runCmd) == 0 {
+			return nil, nil, fmt.Errorf("Specify a tool to run")
+		}
+
+		tool := runCmd[0]
+
+		entrypoint = []string{"/tool/" + tool}
+
+		runCmd = runCmd[1:]
 	}
 
 	config := &env.Config{

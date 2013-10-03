@@ -214,6 +214,10 @@ func ReadRepoFile(path string) (*TagStore, error) {
 		return nil, err
 	}
 
+	if tags.Repositories == nil {
+		tags.Repositories = make(map[string]Repository)
+	}
+
 	return tags, nil
 }
 
