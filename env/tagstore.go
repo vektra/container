@@ -206,7 +206,7 @@ func ReadRepoFile(path string) (*TagStore, error) {
 		return nil, err
 	}
 
-	tags := &TagStore{Path: path}
+	tags := &TagStore{Path: path, Repositories: make(map[string]Repository)}
 
 	err = json.Unmarshal(data, &tags)
 
