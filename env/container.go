@@ -81,6 +81,7 @@ type HostConfig struct {
 	Save            bool
 	Quiet           bool
 	EnvDir          string
+	Hook            string
 }
 
 type BindMap struct {
@@ -736,6 +737,14 @@ func (c *Container) Kill() {
 func (c *Container) Wait(cfg *HostConfig) {
 	pid := fmt.Sprintf("%d\n", c.cmd.Process.Pid)
 	ioutil.WriteFile(path.Join(c.root, "running"), []byte(pid), 0644)
+
+	if cfg.Hook != "" {
+		cmd := exec.Command(cfg.Hook, "started", c.ID)
+		cmd.Stdout = os.Stdout
+		cmd.Stdout = os.Stderr
+
+		cmd.Run()
+	}
 
 	c.cmd.Wait()
 	c.Unmount()

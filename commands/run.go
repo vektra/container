@@ -15,6 +15,7 @@ var forwardSignals = []os.Signal{
 	syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM,
 	syscall.SIGHUP, syscall.SIGUSR1, syscall.SIGUSR2,
 	syscall.SIGWINCH, syscall.SIGTTIN, syscall.SIGTTOU,
+	os.Interrupt,
 }
 
 var flUser *string
@@ -29,6 +30,7 @@ var flVolumes utils.PathOpts
 var flSave *bool
 var flEntrypoint *string
 var flEnvDir *string
+var flHook *string
 
 func init() {
 	cmd := addCommand("run", "[OPTIONS] <image> [<command>] [<args>...]", "Run a command in a new container", 1, runContainer)
@@ -54,6 +56,7 @@ func init() {
 	flEntrypoint = cmd.String("entrypoint", "", "Overwrite the default entrypoint of the image")
 
 	flSave = cmd.Bool("save", false, "Save the container when it exits")
+	flHook = cmd.String("hook", "", "Execute this command once the container is booted")
 }
 
 func runContainer(cmd *flag.FlagSet) {
@@ -91,8 +94,12 @@ func runContainer(cmd *flag.FlagSet) {
 	signal.Notify(c, forwardSignals...)
 
 	go func() {
-		sig := <-c
-		container.Signal(sig)
+		for {
+			sig := <-c
+			fmt.Printf("Got signal!\n")
+			container.Signal(sig)
+			fmt.Printf("Done with signal!\n")
+		}
 	}()
 
 	err = container.Start(hostcfg)
@@ -163,6 +170,7 @@ func ParseRun(cmd *flag.FlagSet, capabilities *env.Capabilities) (*env.Config, *
 		ContainerIDFile: *flContainerIDFile,
 		Save:            *flSave,
 		EnvDir:          *flEnvDir,
+		Hook:            *flHook,
 	}
 
 	if capabilities != nil && *flMemory > 0 && !capabilities.SwapLimit {
