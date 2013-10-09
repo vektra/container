@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"syscall"
 	"time"
 )
 
@@ -141,13 +140,13 @@ func MountAUFS(ro []string, rw string, target string) error {
 	branches += ",xino=/dev/shm/aufs.xino"
 
 	//if error, try to load aufs kernel module
-	if err := syscall.Mount("none", target, "aufs", 0, branches); err != nil {
+	if err := mount("none", target, "aufs", 0, branches); err != nil {
 		log.Printf("Kernel does not support AUFS, trying to load the AUFS module with modprobe...")
 		if err := exec.Command("modprobe", "aufs").Run(); err != nil {
 			return fmt.Errorf("Unable to load the AUFS module")
 		}
 		log.Printf("...module loaded.")
-		if err := syscall.Mount("none", target, "aufs", 0, branches); err != nil {
+		if err := mount("none", target, "aufs", 0, branches); err != nil {
 			return fmt.Errorf("Unable to mount using aufs")
 		}
 	}

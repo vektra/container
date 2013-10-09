@@ -6,13 +6,16 @@ import (
 	"github.com/arch-reactor/container/env"
 	"github.com/arch-reactor/container/utils"
 	"os"
-	"path"
 	"sort"
 	"text/tabwriter"
 )
 
+var flVerbose *bool
+
 func init() {
-	addCommand("images", "[directory]", "List images installed", 0, images)
+	cmd := addCommand("images", "[OPTIONS] [directory]", "List images installed", 0, images)
+
+	flVerbose = cmd.Bool("v", false, "Show more details about images")
 }
 
 func images(cmd *flag.FlagSet) {
@@ -25,7 +28,7 @@ func images(cmd *flag.FlagSet) {
 	}
 
 	// TODO(kev): Don't hardcode file name
-	ts, err := env.ReadRepoFile(path.Join(repoDir, "repositories"))
+	ts, err := env.LoadTagStore(repoDir)
 
 	if err != nil {
 		fmt.Printf("No images: %s\n", err)
@@ -33,7 +36,11 @@ func images(cmd *flag.FlagSet) {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 20, 1, 3, ' ', 0)
-	fmt.Fprintf(w, "REPO\tTAG\tID\n")
+	if *flVerbose {
+		fmt.Fprintf(w, "REPO\tTAG\tID\tPARENT\tCREATED\n")
+	} else {
+		fmt.Fprintf(w, "REPO\tTAG\tID\n")
+	}
 
 	var repos []string
 
@@ -57,7 +64,17 @@ func images(cmd *flag.FlagSet) {
 		for _, tag := range stags {
 			id := tags[tag]
 
-			fmt.Fprintf(w, "%s\t%s\t%s\n", repo, tag, utils.TruncateID(id))
+			if *flVerbose {
+				img := ts.Entries[id]
+				if img == nil {
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", repo, tag, utils.TruncateID(id), "?", "?")
+				} else {
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", repo, tag, utils.TruncateID(id),
+						utils.TruncateID(img.Parent), img.Created)
+				}
+			} else {
+				fmt.Fprintf(w, "%s\t%s\t%s\n", repo, tag, utils.TruncateID(id))
+			}
 		}
 	}
 

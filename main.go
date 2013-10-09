@@ -2,10 +2,13 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/arch-reactor/container/commands"
 	"github.com/arch-reactor/container/env"
 	"os"
 )
+
+const VERSION = "1.13"
 
 func main() {
 	if selfPath := env.SelfPath(); selfPath == "/sbin/init" || selfPath == "/.dockerinit" {
@@ -17,6 +20,11 @@ func main() {
 	if err := env.Init(); err != nil {
 		panic(err)
 	}
+
+  if len(os.Args) == 2 && os.Args[1] == "-v" {
+    fmt.Printf("ar-container %s\n", VERSION)
+    return
+  }
 
 	if len(os.Args) < 2 {
 		commands.Usage()

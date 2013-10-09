@@ -42,6 +42,7 @@ type buildFile struct {
 	// Use to be sure to cleanup when errors happen
 	saveContainer bool
 	squash        bool
+	experiment    bool
 }
 
 func (b *buildFile) CmdFrom(name string) error {
@@ -357,6 +358,11 @@ func (b *buildFile) Build(context string) error {
 
 	b.context = context
 
+	if _, err := os.Stat(path.Join(context, "build.sh")); err == nil {
+		fmt.Printf("Step 0: Execute build.sh on host\n")
+		utils.Shell("cd " + context + "; bash ./build.sh")
+	}
+
 	dockerfile, err := os.Open(path.Join(context, "Dockerfile"))
 	if err != nil {
 		return fmt.Errorf("Can't build a directory with no Dockerfile")
@@ -414,10 +420,17 @@ func (b *buildFile) Build(context string) error {
 		}
 	}
 
+	b.config.Cmd = nil
+
 	err = b.container.ToDisk()
 
 	if err != nil {
 		return err
+	}
+
+	if b.experiment {
+		b.CmdRun("/bin/bash")
+		return nil
 	}
 
 	if b.image != "" && b.outImage != "" {
@@ -500,6 +513,7 @@ func (b *buildFile) BuildTar(tar string) error {
 var flImage *string
 var flTar *bool
 var flSquash *bool
+var flExperiment *bool
 
 func init() {
 	cmd := addCommand("build", "[OPTIONS] <dir|tar>", "Build a container or image from a Dockerfile", 1, build)
@@ -509,6 +523,8 @@ func init() {
 	flImage = cmd.String("i", "", "Image repo[:tag] to save the output as")
 
 	flSquash = cmd.Bool("s", false, "Make a squashfs image")
+
+	flExperiment = cmd.Bool("x", false, "Start a shell to experiment with the built image")
 }
 
 func build(cmd *flag.FlagSet) {
@@ -523,13 +539,14 @@ func build(cmd *flag.FlagSet) {
 	signal.Notify(abort, syscall.SIGINT)
 
 	b := &buildFile{
-		tags:     ts,
-		config:   &env.Config{},
-		out:      os.Stdout,
-		verbose:  true,
-		outImage: *flImage,
-		abort:    abort,
-		squash:   *flSquash,
+		tags:       ts,
+		config:     &env.Config{},
+		out:        os.Stdout,
+		verbose:    true,
+		outImage:   *flImage,
+		abort:      abort,
+		squash:     *flSquash,
+		experiment: *flExperiment,
 	}
 
 	if *flTar {
