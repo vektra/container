@@ -35,7 +35,7 @@ func commit(cmd *flag.FlagSet) {
 		panic(err)
 	}
 
-	img, err := cont.Commit(*flComment, *flAuthor, nil, *flComSquash)
+	img, err := cont.Commit(*flComment, *flAuthor, nil, *flComSquash, false)
 
 	if err != nil {
 		fmt.Printf("Unable to create image: %s\n", err)

@@ -205,7 +205,7 @@ func (container *Container) PathTo(fileName string) string {
 	return path.Join(container.root, fileName)
 }
 
-func (container *Container) Commit(comment, author string, config *Config, squash bool) (*Image, error) {
+func (container *Container) Commit(comment, author string, config *Config, squash bool, fast bool) (*Image, error) {
 
 	if config == nil {
 		config = container.Config
@@ -226,13 +226,11 @@ func (container *Container) Commit(comment, author string, config *Config, squas
 
 	logv("Creating image %s", utils.TruncateID(img.ID))
 
-	root := path.Join(DIR, "graph", "_armktmp")
+	root := path.Join(DIR, "graph", "_armktmp-"+img.ID)
 
 	os.MkdirAll(root, 0755)
 
 	layerPath := path.Join(root, "layer")
-
-	os.MkdirAll(layerPath, 0700)
 
 	if squash {
 		layerFs := path.Join(root, "layer.fs")
@@ -241,13 +239,13 @@ func (container *Container) Commit(comment, author string, config *Config, squas
 
 		utils.Run("mksquashfs", container.rwPath(), layerFs, "-comp", "xz")
 	} else {
-		tarbz2 := path.Join(root, "layer.tar.bz2")
-
-		logv("Generating tar.bz2...")
-
-		utils.Run("tar", "--numeric-owner", "-cjf", tarbz2, "-C", container.rwPath(), ".")
-
-		utils.Run("tar", "-xjvf", tarbz2, "-C", layerPath)
+		if false {
+			logv("Moving data directly into image...")
+			utils.Run("mv", container.rwPath(), layerPath)
+		} else {
+			logv("Copying data into image...")
+			utils.Run("cp", "-a", container.rwPath(), layerPath)
+		}
 	}
 
 	jsonData, err := json.Marshal(img)

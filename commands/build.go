@@ -434,7 +434,7 @@ func (b *buildFile) Build(context string) error {
 	}
 
 	if b.image != "" && b.outImage != "" {
-		img, err := b.container.Commit("", "", nil, b.squash)
+		img, err := b.container.Commit("", "", nil, b.squash, true)
 
 		if err != nil {
 			return err
@@ -482,7 +482,7 @@ func (b *buildFile) BuildTar(tar string) error {
 	}
 
 	if b.outImage != "" {
-		img, err := b.container.Commit("", "", nil, b.squash)
+		img, err := b.container.Commit("", "", nil, b.squash, true)
 
 		if err != nil {
 			return err
@@ -500,7 +500,6 @@ func (b *buildFile) BuildTar(tar string) error {
 		ts.Flush()
 
 		fmt.Fprintf(b.out, "Built %s successfully\n", b.outImage)
-		b.container.Remove()
 		return nil
 	}
 
