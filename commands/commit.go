@@ -3,8 +3,8 @@ package commands
 import (
 	"flag"
 	"fmt"
-	"github.com/arch-reactor/container/env"
-	"github.com/arch-reactor/container/utils"
+	"github.com/vektra/container/env"
+	"github.com/vektra/container/utils"
 )
 
 var flAuthor *string

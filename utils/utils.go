@@ -57,7 +57,7 @@ func Subcmd(name, signature, description string) *flag.FlagSet {
 	flags := flag.NewFlagSet(name, flag.ContinueOnError)
 	flags.Usage = func() {
 		// FIXME: use custom stdout or return error
-		fmt.Fprintf(os.Stdout, "\nUsage: ar-container %s %s\n\n%s\n\n", name, signature, description)
+		fmt.Fprintf(os.Stdout, "\nUsage: vk-container %s %s\n\n%s\n\n", name, signature, description)
 		flags.PrintDefaults()
 	}
 	return flags

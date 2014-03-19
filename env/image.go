@@ -2,7 +2,7 @@ package env
 
 import (
 	"fmt"
-	"github.com/arch-reactor/container/utils"
+	"github.com/vektra/container/utils"
 	"io/ioutil"
 	"log"
 	"os"

@@ -1,8 +1,9 @@
 deb:
+	go get -d
 	go build
 	mkdir -p usr/bin
-	cp container usr/bin/ar-container
-	bundle exec fpm -f -s dir -t deb -n "ar-container" -v `cat VERSION` usr/
+	cp container usr/bin/vk-container
+	fpm -f -s dir -t deb -n "vk-container" -v `cat VERSION` usr/
 	rm -rf usr
 
 install: deb

@@ -3,7 +3,7 @@ package env
 import (
 	"flag"
 	"fmt"
-	"github.com/arch-reactor/container/utils"
+	"github.com/vektra/container/utils"
 	"io/ioutil"
 	"log"
 	"os"

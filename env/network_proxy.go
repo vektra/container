@@ -3,7 +3,7 @@ package env
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/arch-reactor/container/utils"
+	"github.com/vektra/container/utils"
 	"io"
 	"log"
 	"net"

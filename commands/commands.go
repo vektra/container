@@ -3,7 +3,7 @@ package commands
 import (
 	"flag"
 	"fmt"
-	"github.com/arch-reactor/container/utils"
+	"github.com/vektra/container/utils"
 )
 
 type command struct {
@@ -23,7 +23,7 @@ var commands []command = nil
 
 func Usage() {
 	fmt.Println(`
-Usage: ar-container COMMAND
+Usage: vk-container COMMAND
 
 Where COMMAND is one of the following:
 `)

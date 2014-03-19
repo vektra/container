@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"github.com/arch-reactor/container/utils"
+	"github.com/vektra/container/utils"
 	"io/ioutil"
 	"log"
 	"net"
@@ -289,10 +289,10 @@ func (mapper *PortMapper) setup() error {
 	}
 
 	if err := iptables("-t", "nat", "-A", "PREROUTING", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "AR"); err != nil {
-		return fmt.Errorf("Failed to inject ar-container in PREROUTING chain: %s", err)
+		return fmt.Errorf("Failed to inject vk-container in PREROUTING chain: %s", err)
 	}
 	if err := iptables("-t", "nat", "-A", "OUTPUT", "-m", "addrtype", "--dst-type", "LOCAL", "!", "--dst", "127.0.0.0/8", "-j", "AR"); err != nil {
-		return fmt.Errorf("Failed to inject ar-container in OUTPUT chain: %s", err)
+		return fmt.Errorf("Failed to inject vk-container in OUTPUT chain: %s", err)
 	}
 	return nil
 }

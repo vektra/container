@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/arch-reactor/container/commands"
-	"github.com/arch-reactor/container/env"
+	"github.com/vektra/container/commands"
+	"github.com/vektra/container/env"
 	"os"
 )
 
@@ -22,7 +22,7 @@ func main() {
 	}
 
   if len(os.Args) == 2 && os.Args[1] == "-v" {
-    fmt.Printf("ar-container %s\n", VERSION)
+    fmt.Printf("vk-container %s\n", VERSION)
     return
   }
 

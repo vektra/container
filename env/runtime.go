@@ -8,15 +8,15 @@ import (
 	"path"
 )
 
-const DIR = "/var/lib/ar-container"
+const DIR = "/var/lib/vk-container"
 
-// ar-container stores details about each container in /var/run/ar-container/$PID/
-const RUN_DIR = "/var/run/ar-container"
+// vk-container stores details about each container in /var/run/vk-container/$PID/
+const RUN_DIR = "/var/run/vk-container"
 
 // When the container's data is initialized, it advertises by placing a file at INIT_DIR/$PID
-const INIT_DIR = "/var/run/ar-container/running"
+const INIT_DIR = "/var/run/vk-container/running"
 
-const GLOBAL_VARS = "/etc/ar-container/variables"
+const GLOBAL_VARS = "/etc/vk-container/variables"
 
 func Init() error { // Not auto-run on purpose.
 	paths := []string{RUN_DIR, INIT_DIR, path.Join(DIR, "graph"), path.Join(DIR, "containers")}
