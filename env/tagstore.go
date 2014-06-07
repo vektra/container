@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/vektra/container/utils"
 	"io/ioutil"
 	"os"
 	"path"
 	"strings"
+
+	"github.com/vektra/container/utils"
 )
 
 const DEFAULTTAG = "latest"
@@ -95,6 +96,16 @@ func (store *TagStore) LookupImage(name string) (*Image, error) {
 	}
 
 	return img, nil
+}
+
+func (store *TagStore) UsedAsParent(id string) bool {
+	for _, img := range store.Entries {
+		if img.Parent == id {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (ts *TagStore) Add(repo, tag, hash string) {
@@ -257,14 +268,14 @@ func LoadTagStore(root string) (*TagStore, error) {
 		tags.Entries[id] = img
 	}
 
-	for _, img := range tags.Entries {
+	for id, img := range tags.Entries {
 		if img.Parent != "" {
 			par, ok := tags.Entries[img.Parent]
 			if ok {
 				img.parentImage = par
 			} else {
-				fmt.Fprintf(os.Stderr, "Unable to find parent image %s\n",
-					utils.TruncateID(img.Parent))
+				fmt.Fprintf(os.Stderr, "Unable to find parent image %s for %s\n",
+					utils.TruncateID(img.Parent), id)
 			}
 		}
 	}

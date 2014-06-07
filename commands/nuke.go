@@ -3,11 +3,12 @@ package commands
 import (
 	"flag"
 	"fmt"
-	"github.com/vektra/container/env"
-	"github.com/vektra/container/utils"
 	"io/ioutil"
 	"os"
 	"path"
+
+	"github.com/vektra/container/env"
+	"github.com/vektra/container/utils"
 )
 
 func nukeImage(id string) {
@@ -34,6 +35,12 @@ func nukeImage(id string) {
 		} else {
 			err = nil
 		}
+
+		if !*flForce && ts.UsedAsParent(long) {
+			fmt.Printf("%s is a parent image, not removing (use -force to force)\n", id)
+			return
+		}
+
 	}
 
 	if img != nil {
@@ -54,7 +61,8 @@ func nukeImage(id string) {
 }
 
 func init() {
-	addCommand("nuke", "<image> | <id>", "Delete an image or container", 1, nuke)
+	cmd := addCommand("nuke", "<image> | <id>", "Delete an image or container", 1, nuke)
+	flForce = cmd.Bool("force", false, "Forcefully remove the image")
 }
 
 func nuke(cmd *flag.FlagSet) {

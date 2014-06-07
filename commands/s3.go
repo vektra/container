@@ -4,20 +4,21 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/vektra/container/env"
-	"github.com/vektra/container/utils"
-	"launchpad.net/goamz/aws"
-	"launchpad.net/goamz/s3"
 	"os"
 	"os/exec"
 	"path"
+
+	"github.com/crowdmob/goamz/aws"
+	"github.com/crowdmob/goamz/s3"
+	"github.com/vektra/container/env"
+	"github.com/vektra/container/utils"
 )
 
 const accessKey = "AKIAJ23SZJOF6SSCAYFQ"
 const secretKey = "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"
 const defBucket = "priv.nextphase.io"
 
-var awsAuth = aws.Auth{accessKey, secretKey}
+var awsAuth = aws.Auth{AccessKey: accessKey, SecretKey: secretKey}
 var awsRegion = aws.USEast
 
 func (i *Importer) download(buk *s3.Bucket, id string) {
