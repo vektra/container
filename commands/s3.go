@@ -2,7 +2,6 @@ package commands
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/crowdmob/goamz/aws"
 	"github.com/crowdmob/goamz/s3"
+	"github.com/vektra/components/app"
 	"github.com/vektra/container/env"
 	"github.com/vektra/container/utils"
 )
@@ -21,7 +21,7 @@ const defBucket = "priv.nextphase.io"
 var awsAuth = aws.Auth{AccessKey: accessKey, SecretKey: secretKey}
 var awsRegion = aws.USEast
 
-func (i *Importer) download(buk *s3.Bucket, id string) {
+func (i *Importer) download(buk *s3.Bucket, id string) error {
 	tmpPath := path.Join(env.DIR, "graph", ":artmp:"+id)
 
 	outPath := path.Join(env.DIR, "graph", id)
@@ -35,7 +35,7 @@ func (i *Importer) download(buk *s3.Bucket, id string) {
 	rc, err := buk.GetReader(key)
 
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	cmd := exec.Command("tar", "-f", "-", "-C", tmpPath, "-x")
@@ -51,13 +51,14 @@ func (i *Importer) download(buk *s3.Bucket, id string) {
 
 	if img.Parent != "" {
 		if i.alreadyExists(img.Parent) {
-			fmt.Printf("Parent layer %s already installed, not overwriting\n", img.Parent)
-			return
+			return fmt.Errorf("Parent layer %s already installed, not overwriting\n", img.Parent)
 		}
 
 		fmt.Printf("Moving to download parent %s...\n", img.Parent)
-		i.download(buk, img.Parent)
+		return i.download(buk, img.Parent)
 	}
+
+	return nil
 }
 
 /*
@@ -67,7 +68,7 @@ func (i *Importer) download(buk *s3.Bucket, id string) {
 	jsonData, err := ioutil.ReadFile(path.Join(tmpPath, "metadata.js"))
 
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	img := &Image{}
@@ -75,7 +76,7 @@ func (i *Importer) download(buk *s3.Bucket, id string) {
 	err = json.Unmarshal(jsonData, &img)
 
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	run("cp", path.Join(tmpPath, "metadata.js"), path.Join(outPath, "json"))
@@ -97,16 +98,24 @@ func (i *Importer) download(buk *s3.Bucket, id string) {
 }
 */
 
-var flForce *bool
-
-func init() {
-	cmd := addCommand("s3", "[-f] <repo>[:<tag>]", "Pull down a repo from S3", 1, s3pull)
-
-	flForce = cmd.Bool("f", false, "Download repos even if we already have them")
+type s3Options struct {
+	Force bool `short:"f" description:"Download repos even if we already have them"`
 }
 
-func s3pull(cmd *flag.FlagSet) {
-	repo := cmd.Arg(0)
+func init() {
+	app.AddCommand("s3", "Pull down a repo from S3", "", &s3Options{})
+}
+
+func (so *s3Options) Usage() string {
+	return "[OPTIONS] <repo:tag>"
+}
+
+func (so *s3Options) Execute(args []string) error {
+	if err := app.CheckArity(1, 1, args); err != nil {
+		return err
+	}
+
+	repo := args[0]
 
 	s3 := s3.New(awsAuth, awsRegion)
 	buk := s3.Bucket(defBucket)
@@ -114,7 +123,7 @@ func s3pull(cmd *flag.FlagSet) {
 	data, err := buk.Get("/binary/repos/repositories")
 
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	ts := &env.TagStore{}
@@ -124,27 +133,28 @@ func s3pull(cmd *flag.FlagSet) {
 	id, err := ts.Lookup(repo)
 
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	dts, err := env.DefaultTagStore()
 
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	i := &Importer{tags: ts, sysTags: dts}
 
-	if !*flForce {
+	if !so.Force {
 		if i.alreadyExists(id) {
-			fmt.Printf("Already have %s, skipping download\n", utils.TruncateID(id))
-			return
+			return fmt.Errorf("Already have %s, skipping download\n", utils.TruncateID(id))
 		}
 	}
 
 	fmt.Printf("Downloading %s (%s)\n", repo, utils.TruncateID(id))
 
-	i.download(buk, id)
+	err = i.download(buk, id)
 
 	dts.Flush()
+
+	return err
 }

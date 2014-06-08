@@ -3,23 +3,34 @@ package commands
 import (
 	"bytes"
 	"encoding/json"
-	"flag"
+	"os"
+
+	"github.com/vektra/components/app"
 	"github.com/vektra/container/env"
 	"github.com/vektra/container/utils"
-	"os"
 )
 
+type inspectOptions struct{}
+
 func init() {
-	addCommand("inspect", "<id>", "Display details about a container", 1, inspect)
+	app.AddCommand("inspect", "Display details about a container", "", &inspectOptions{})
 }
 
-func inspect(cmd *flag.FlagSet) {
-	id := utils.ExpandID(env.DIR, cmd.Arg(0))
+func (io *inspectOptions) Usage() string {
+	return "<id>"
+}
+
+func (io *inspectOptions) Execute(args []string) error {
+	if err := app.CheckArity(1, 1, args); err != nil {
+		return err
+	}
+
+	id := utils.ExpandID(env.DIR, args[0])
 
 	cont, err := env.LoadContainer(env.DIR, id)
 
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	data, err := json.Marshal(cont)
@@ -30,4 +41,6 @@ func inspect(cmd *flag.FlagSet) {
 
 	out.WriteTo(os.Stdout)
 	os.Stdout.Write([]byte("\n"))
+
+	return nil
 }

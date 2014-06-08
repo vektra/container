@@ -1,24 +1,35 @@
 package commands
 
 import (
-	"flag"
 	"fmt"
+
+	"github.com/vektra/components/app"
 	"github.com/vektra/container/env"
 )
 
+type rmiOptions struct{}
+
 func init() {
-	addCommand("rmi", "<id>", "Remove image with <id>", 1, rmi)
+	app.AddCommand("rmi", "Remove an image", "", &rmiOptions{})
 }
 
-func rmi(cmd *flag.FlagSet) {
-	if ts, err := env.DefaultTagStore(); err != nil {
-		panic(err)
-	} else {
-		if !ts.RemoveByPrefix(cmd.Args()[0]) {
-			fmt.Println("Unable to remove image.")
-		}
-		if err = ts.Flush(); err != nil {
-			panic(err)
-		}
+func (ro *rmiOptions) Usage() string {
+	return "<repo:tag>"
+}
+
+func (ro *rmiOptions) Execute(args []string) error {
+	if err := app.CheckArity(1, 1, args); err != nil {
+		return err
 	}
+
+	ts, err := env.DefaultTagStore()
+	if err != nil {
+		return err
+	}
+
+	if !ts.RemoveByPrefix(args[0]) {
+		fmt.Println("Unable to remove image.")
+	}
+
+	return ts.Flush()
 }

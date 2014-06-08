@@ -1,27 +1,32 @@
 package commands
 
 import (
-	"flag"
 	"fmt"
-	"github.com/vektra/container/env"
-	"github.com/vektra/container/utils"
 	"os"
 	"sort"
 	"text/tabwriter"
+
+	"github.com/vektra/components/app"
+	"github.com/vektra/container/env"
+	"github.com/vektra/container/utils"
 )
 
-var flVerbose *bool
-
-func init() {
-	cmd := addCommand("images", "[OPTIONS] [directory]", "List images installed", 0, images)
-
-	flVerbose = cmd.Bool("v", false, "Show more details about images")
+type imagesOptions struct {
+	Verbose bool `short:"v" description:"Show more details"`
 }
 
-func images(cmd *flag.FlagSet) {
+func (io *imagesOptions) Usage() string {
+	return "[OPTIONS] [repoDir]"
+}
+
+func (io *imagesOptions) Execute(args []string) error {
+	if err := app.CheckArity(0, 1, args); err != nil {
+		return err
+	}
+
 	var repoDir string
-	if len(cmd.Args()) > 0 {
-		repoDir = cmd.Arg(0)
+	if len(args) > 0 {
+		repoDir = args[0]
 		fmt.Printf("Loading tag store from: %s\n", repoDir)
 	} else {
 		repoDir = env.DIR
@@ -31,12 +36,11 @@ func images(cmd *flag.FlagSet) {
 	ts, err := env.LoadTagStore(repoDir)
 
 	if err != nil {
-		fmt.Printf("No images: %s\n", err)
-		return
+		return fmt.Errorf("No images: %s\n", err)
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 20, 1, 3, ' ', 0)
-	if *flVerbose {
+	if io.Verbose {
 		fmt.Fprintf(w, "REPO\tTAG\tID\tPARENT\tCREATED\n")
 	} else {
 		fmt.Fprintf(w, "REPO\tTAG\tID\n")
@@ -64,7 +68,7 @@ func images(cmd *flag.FlagSet) {
 		for _, tag := range stags {
 			id := tags[tag]
 
-			if *flVerbose {
+			if io.Verbose {
 				img := ts.Entries[id]
 				if img == nil {
 					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", repo, tag, utils.TruncateID(id), "?", "?")
@@ -79,4 +83,10 @@ func images(cmd *flag.FlagSet) {
 	}
 
 	w.Flush()
+
+	return nil
+}
+
+func init() {
+	app.AddCommand("images", "List images installed", "", &imagesOptions{})
 }

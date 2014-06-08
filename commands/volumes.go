@@ -1,62 +1,67 @@
 package commands
 
 import (
-	"flag"
 	"fmt"
-	"github.com/vektra/container/env"
 	"io/ioutil"
 	"os"
 	"path"
+
+	"github.com/vektra/components/app"
+	"github.com/vektra/container/env"
 )
+
+type volumeOptions struct {
+	Remove string `short:"r" description:"Remove a named volume"`
+	Dir    string `short:"d" description:"Print the directory a volume is at"`
+}
 
 var flRemove *string
 var flDir *string
 
 func init() {
-	cmd := addCommand("volumes", "[OPTIONS]", "Disable and manipulate named volumes", 0, volumes)
-
-	flRemove = cmd.String("r", "", "Remove a named volume")
-	flDir = cmd.String("d", "", "Print the directory a volume is at")
+	app.AddCommand("volumes", "Disable and manipulate named volumes", "", &volumeOptions{})
 }
 
-func volumes(cmd *flag.FlagSet) {
-	if *flRemove != "" {
-		pth := path.Join(env.DIR, "volumes", *flRemove)
+func (vo *volumeOptions) Execute(args []string) error {
+	if err := app.CheckArity(0, 0, args); err != nil {
+		return err
+	}
+
+	if vo.Remove != "" {
+		pth := path.Join(env.DIR, "volumes", vo.Remove)
 
 		_, err := os.Stat(pth)
 
 		if err != nil {
-			fmt.Printf("No volume to remove: %s\n", *flRemove)
-			return
+			return fmt.Errorf("No volume to remove: %s\n", vo.Remove)
 		}
 
 		os.RemoveAll(pth)
-		return
+		return nil
 	}
 
-	if *flDir != "" {
-		pth := path.Join(env.DIR, "volumes", *flRemove)
+	if vo.Dir != "" {
+		pth := path.Join(env.DIR, "volumes", vo.Dir)
 
 		_, err := os.Stat(pth)
 
 		if err != nil {
-			fmt.Printf("No volume: %s\n", *flDir)
-			os.Exit(1)
-			return
+			return fmt.Errorf("No volume: %s\n", vo.Dir)
 		}
 
 		fmt.Printf("%s\n", pth)
-		return
+		return nil
 	}
 
 	dirs, err := ioutil.ReadDir(path.Join(env.DIR, "volumes"))
 
 	if err != nil {
-		fmt.Printf("Error reading volumes: %s\n", err)
-		return
+		return fmt.Errorf("Error reading volumes: %s\n", err)
 	}
 
 	for _, d := range dirs {
 		fmt.Printf("%s\n", d.Name())
 	}
+
+	return nil
 }

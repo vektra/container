@@ -1,71 +1,71 @@
 package commands
 
 import (
-	"flag"
 	"fmt"
+
+	"github.com/vektra/components/app"
 	"github.com/vektra/container/env"
-	"os"
 )
 
-var flDel *bool
-var flResolve *bool
-
-func init() {
-	cmd := addCommand("tag", "[OPTIONS] <tag> [<id>]", "Add or remove a tag from an image", 1, tag)
-
-	flDel = cmd.Bool("r", false, "Remove a tag from an image")
-	flResolve = cmd.Bool("f", false, "Resolve a tag into an id")
+type tagOptions struct {
+	Del     bool `short:"r" description:"Remove a tag from an image"`
+	Resolve bool `short:"f" description:"Resolve a tag into an id"`
 }
 
-func tag(cmd *flag.FlagSet) {
+func init() {
+	app.AddCommand("tag", "Add or remove a tag from an image", "", &tagOptions{})
+}
+
+func (to *tagOptions) Usage() string {
+	return "[OPTIONS] <tag> [id]"
+}
+
+func (to *tagOptions) Execute(args []string) error {
 	ts, err := env.DefaultTagStore()
 
 	if err != nil {
 		panic(err)
 	}
 
-	if *flResolve {
-		if len(cmd.Args()) < 1 {
-			fmt.Printf("Specify a repo:tag to resolve\n")
-			os.Exit(1)
+	if to.Resolve {
+		if len(args) < 1 {
+			return fmt.Errorf("Specify a repo:tag to resolve\n")
 		}
 
-		id, err := ts.Lookup(cmd.Arg(0))
+		id, err := ts.Lookup(args[0])
 
 		if err != nil {
-			fmt.Printf("Unable to resolve tag: %s\n", cmd.Arg(0))
-			os.Exit(1)
+			return fmt.Errorf("Unable to resolve tag: %s\n", args[0])
 		}
 
 		fmt.Printf("%s\n", id)
-		os.Exit(0)
+		return nil
 	}
 
-	if *flDel {
-		if len(cmd.Args()) < 1 {
-			fmt.Printf("Specify a repo:tag to delete\n")
-			os.Exit(1)
+	if to.Del {
+		if len(args) < 1 {
+			return fmt.Errorf("Specify a repo:tag to delete\n")
 		}
 
-		repo, tag := env.ParseRepositoryTag(cmd.Arg(0))
+		repo, tag := env.ParseRepositoryTag(args[0])
 
 		ts.RemoveTag(repo, tag)
 	} else {
-		if len(cmd.Args()) < 2 {
-			fmt.Printf("Specify a repo:tag and id to add\n")
-			os.Exit(1)
+		if len(args) < 2 {
+			return fmt.Errorf("Specify a repo:tag and id to add\n")
 		}
-		repo, tag := env.ParseRepositoryTag(cmd.Arg(0))
+		repo, tag := env.ParseRepositoryTag(args[0])
 
-		id, ok := env.SafelyExpandImageID(cmd.Arg(1))
+		id, ok := env.SafelyExpandImageID(args[1])
 
 		if !ok {
-			fmt.Printf("Unable to find image matching '%s'\n", cmd.Arg(1))
-			return
+			return fmt.Errorf("Unable to find image matching '%s'\n", args[1])
 		}
 
 		ts.Add(repo, tag, id)
 	}
 
 	ts.Flush()
+
+	return nil
 }

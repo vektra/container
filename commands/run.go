@@ -1,14 +1,14 @@
 package commands
 
 import (
-	"flag"
 	"fmt"
-	"github.com/vektra/container/env"
-	"github.com/vektra/container/utils"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+
+	"github.com/vektra/components/app"
+	"github.com/vektra/container/env"
 )
 
 var forwardSignals = []os.Signal{
@@ -18,78 +18,58 @@ var forwardSignals = []os.Signal{
 	os.Interrupt,
 }
 
-var flUser *string
-var flMemory *int64
-var flContainerIDFile *string
-var flNetwork *bool
-var flCpuShares *int64
-var flPorts utils.ListOpts
-var flEnv utils.ListOpts
-var flDns utils.ListOpts
-var flVolumes utils.PathOpts
-var flSave *bool
-var flEntrypoint *string
-var flEnvDir *string
-var flHook *string
-var flTool *bool
-
-func init() {
-	cmd := addCommand("run", "[OPTIONS] <image> [<command>] [<args>...]", "Run a command in a new container", 1, runContainer)
-
-	flUser = cmd.String("u", "", "Username or UID")
-	flMemory = cmd.Int64("m", 0, "Memory limit (in bytes)")
-	flContainerIDFile = cmd.String("cidfile", "", "Write the container ID to the file")
-	flNetwork = cmd.Bool("n", true, "Enable networking for this container")
-
-	flCpuShares = cmd.Int64("c", 0, "CPU shares (relative weight)")
-
-	cmd.Var(&flPorts, "p", "Expose a container's port to the host (use 'docker port' to see the actual mapping)")
-
-	cmd.Var(&flEnv, "e", "Set environment variables")
-
-	flEnvDir = cmd.String("envdir", "", "Load environment variables from an envdir")
-
-	cmd.Var(&flDns, "dns", "Set custom dns servers")
-
-	flVolumes = utils.NewPathOpts()
-	cmd.Var(flVolumes, "v", "Bind mount a volume (e.g. from the host: -v /host:/container, from docker: -v /container)")
-
-	flEntrypoint = cmd.String("entrypoint", "", "Overwrite the default entrypoint of the image")
-
-	flSave = cmd.Bool("save", false, "Save the container when it exits")
-	flHook = cmd.String("hook", "", "Execute this command once the container is booted")
-	flTool = cmd.Bool("t", false, "Run a provided tool")
+type runOptions struct {
+	User       string   `short:"u" description:"Username or UID"`
+	Memory     int64    `short:"m" description:"Memory limit (in bytes)"`
+	CIDFile    string   `long:"cidfile" description:"Write the container ID to a file"`
+	Network    bool     `short:"n" description:"Enable networking" default:"true"`
+	CPU        int64    `short:"c" description:"CPU shares (relative weight)"`
+	Ports      []string `short:"p" description:"Export a port"`
+	Env        []string `short:"e" description:"Set environment variables"`
+	EnvDir     string   `long:"envdir" description:"Load env vars from an envdir"`
+	DNS        []string `long:"dns" description:"Set custom dns servers"`
+	Volumes    []string `short:"v" description:"Bind mount volumes"`
+	Save       bool     `long:"save" description:"Save the container when it exits"`
+	EntryPoint string   `long:"entrypoint" description:"Set the default entrypoint"`
+	Hook       string   `long:"hook" description:"Execute this command once the container is booted"`
+	Tool       bool     `short:"t" description"Run a provided tool"`
 }
 
-func runContainer(cmd *flag.FlagSet) {
+func init() {
+	app.AddCommand("run", "Run a command in a new container", "", &runOptions{})
+}
+
+func (ro *runOptions) Usage() string {
+	return "[OPTIONS] <image> [<command>] [<args>...]"
+}
+
+func (ro *runOptions) Execute(args []string) error {
 	capa := &env.Capabilities{}
 
-	config, hostcfg, err := ParseRun(cmd, capa)
+	config, hostcfg, err := ParseRun(ro, args, capa)
+	if err != nil {
+		return err
+	}
 
 	if config == nil {
-		return
+		return nil
 	}
 
 	if config.Image == "" {
-		cmd.Usage()
-		return
-	}
-
-	if err != nil {
-		panic(err)
+		app.ShowHelp()
+		return nil
 	}
 
 	tags, err := env.DefaultTagStore()
 
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	container, err := env.ContainerCreate(tags, config)
 
 	if err != nil {
-		fmt.Printf("Unable to create container: %s\n", err)
-		os.Exit(1)
+		return fmt.Errorf("Unable to create container: %s\n", err)
 	}
 
 	c := make(chan os.Signal, 1)
@@ -108,50 +88,53 @@ func runContainer(cmd *flag.FlagSet) {
 
 	if err != nil {
 		container.Remove()
-		fmt.Printf("Unable to start container: %s\n", err)
-		os.Exit(1)
+		return fmt.Errorf("Unable to start container: %s\n", err)
 	}
 
 	container.Wait(hostcfg)
+
+	return nil
 }
 
-func ParseRun(cmd *flag.FlagSet, capabilities *env.Capabilities) (*env.Config, *env.HostConfig, error) {
-	if capabilities != nil && *flMemory > 0 && !capabilities.MemoryLimit {
+func ParseRun(ro *runOptions, args []string, capabilities *env.Capabilities) (*env.Config, *env.HostConfig, error) {
+	if capabilities != nil && ro.Memory > 0 && !capabilities.MemoryLimit {
 		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support memory limit capabilities. Limitation discarded.\n")
-		*flMemory = 0
+		ro.Memory = 0
 	}
 
 	var binds []string
+	volumes := map[string]struct{}{}
 
 	// add any bind targets to the list of container volumes
-	for bind := range flVolumes {
+	for _, bind := range ro.Volumes {
 		arr := strings.Split(bind, ":")
 		if len(arr) > 1 && arr[1][0:1] != "@" {
 			dstDir := arr[1]
-			flVolumes[dstDir] = struct{}{}
+			volumes[dstDir] = struct{}{}
 			binds = append(binds, bind)
-			delete(flVolumes, bind)
+		} else {
+			volumes[bind] = struct{}{}
 		}
 	}
 
-	parsedArgs := cmd.Args()
+	parsedArgs := args
 	runCmd := []string{}
 	entrypoint := []string{}
 	image := ""
 
 	if len(parsedArgs) >= 1 {
-		image = cmd.Arg(0)
+		image = parsedArgs[0]
 	}
 
 	if len(parsedArgs) > 1 {
 		runCmd = parsedArgs[1:]
 	}
 
-	if *flEntrypoint != "" {
-		entrypoint = []string{*flEntrypoint}
+	if ro.EntryPoint != "" {
+		entrypoint = []string{ro.EntryPoint}
 	}
 
-	if *flTool {
+	if ro.Tool {
 		if len(runCmd) == 0 {
 			return nil, nil, fmt.Errorf("Specify a tool to run")
 		}
@@ -165,34 +148,34 @@ func ParseRun(cmd *flag.FlagSet, capabilities *env.Capabilities) (*env.Config, *
 
 	config := &env.Config{
 		Hostname:        "",
-		PortSpecs:       flPorts,
-		User:            *flUser,
+		PortSpecs:       ro.Ports,
+		User:            ro.User,
 		Tty:             true,
-		NetworkDisabled: !*flNetwork,
+		NetworkDisabled: !ro.Network,
 		OpenStdin:       true,
-		Memory:          *flMemory,
-		CpuShares:       *flCpuShares,
+		Memory:          ro.Memory,
+		CpuShares:       ro.CPU,
 		AttachStdin:     true,
 		AttachStdout:    true,
 		AttachStderr:    true,
-		Env:             flEnv,
+		Env:             ro.Env,
 		Cmd:             runCmd,
-		Dns:             flDns,
+		Dns:             ro.DNS,
 		Image:           image,
-		Volumes:         flVolumes,
+		Volumes:         volumes,
 		VolumesFrom:     "",
 		Entrypoint:      entrypoint,
 	}
 
 	hostConfig := &env.HostConfig{
 		Binds:           binds,
-		ContainerIDFile: *flContainerIDFile,
-		Save:            *flSave,
-		EnvDir:          *flEnvDir,
-		Hook:            *flHook,
+		ContainerIDFile: ro.CIDFile,
+		Save:            ro.Save,
+		EnvDir:          ro.EnvDir,
+		Hook:            ro.Hook,
 	}
 
-	if capabilities != nil && *flMemory > 0 && !capabilities.SwapLimit {
+	if capabilities != nil && ro.Memory > 0 && !capabilities.SwapLimit {
 		//fmt.Fprintf(stdout, "WARNING: Your kernel does not support swap limit capabilities. Limitation discarded.\n")
 		config.MemorySwap = -1
 	}

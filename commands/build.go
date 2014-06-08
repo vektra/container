@@ -3,10 +3,7 @@ package commands
 import (
 	"bufio"
 	"encoding/json"
-	"flag"
 	"fmt"
-	"github.com/vektra/container/env"
-	"github.com/vektra/container/utils"
 	"io"
 	"io/ioutil"
 	"net/url"
@@ -18,6 +15,10 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/vektra/components/app"
+	"github.com/vektra/container/env"
+	"github.com/vektra/container/utils"
 )
 
 type BuildFile interface {
@@ -509,28 +510,22 @@ func (b *buildFile) BuildTar(tar string) error {
 	return nil
 }
 
-var flImage *string
-var flTar *bool
-var flSquash *bool
-var flExperiment *bool
-
-func init() {
-	cmd := addCommand("build", "[OPTIONS] <dir|tar>", "Build a container or image from a Dockerfile", 1, build)
-
-	flTar = cmd.Bool("t", false, "Create an image from a tar.gz or directory")
-
-	flImage = cmd.String("i", "", "Image repo[:tag] to save the output as")
-
-	flSquash = cmd.Bool("s", false, "Make a squashfs image")
-
-	flExperiment = cmd.Bool("x", false, "Start a shell to experiment with the built image")
+type buildOptions struct {
+	Image      string `short:"i" description:"Image repo[:tag] to save the output as"`
+	Tar        bool   `short:"t" description:"Create an image from a tar.gz or dir"`
+	Squash     bool   `short:"s" description:"Make a squashfs image"`
+	Experiment bool   `short:"x" description:"Start a shell to experiment in the built image"`
 }
 
-func build(cmd *flag.FlagSet) {
+func (bo *buildOptions) Execute(args []string) error {
 	ts, err := env.DefaultTagStore()
 
 	if err != nil {
-		panic(err)
+		return err
+	}
+
+	if err := app.CheckArity(1, 1, args); err != nil {
+		return err
 	}
 
 	abort := make(chan os.Signal, 1)
@@ -542,19 +537,29 @@ func build(cmd *flag.FlagSet) {
 		config:     &env.Config{},
 		out:        os.Stdout,
 		verbose:    true,
-		outImage:   *flImage,
+		outImage:   bo.Image,
 		abort:      abort,
-		squash:     *flSquash,
-		experiment: *flExperiment,
+		squash:     bo.Squash,
+		experiment: bo.Experiment,
 	}
 
-	if *flTar {
-		err = b.BuildTar(cmd.Arg(0))
+	if bo.Tar {
+		err = b.BuildTar(args[0])
 	} else {
-		err = b.Build(cmd.Arg(0))
+		err = b.Build(args[0])
 	}
 
 	if err != nil && err != ErrAbort {
-		panic(err)
+		return err
 	}
+
+	return nil
+}
+
+func (bo *buildOptions) Usage() string {
+	return "[OPTIONS] <dir|tar>"
+}
+
+func init() {
+	app.AddCommand("build", "Build a container", "Build a container or image from a Dockerfile", &buildOptions{})
 }

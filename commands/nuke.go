@@ -1,21 +1,21 @@
 package commands
 
 import (
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
 
+	"github.com/vektra/components/app"
 	"github.com/vektra/container/env"
 	"github.com/vektra/container/utils"
 )
 
-func nukeImage(id string) {
+func nukeImage(no *nukeOptions, id string) error {
 	ts, err := env.DefaultTagStore()
 
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	img, err := ts.LookupImage(id)
@@ -30,15 +30,13 @@ func nukeImage(id string) {
 		img, ok = ts.Entries[long]
 
 		if !ok {
-			fmt.Printf("Unable to find repo '%s'\n", id)
-			return
+			return fmt.Errorf("Unable to find repo '%s'\n", id)
 		} else {
 			err = nil
 		}
 
-		if !*flForce && ts.UsedAsParent(long) {
-			fmt.Printf("%s is a parent image, not removing (use -force to force)\n", id)
-			return
+		if !no.Force && ts.UsedAsParent(long) {
+			return fmt.Errorf("%s is a parent image, not removing (use -force to force)\n", id)
 		}
 
 	}
@@ -53,20 +51,30 @@ func nukeImage(id string) {
 			img.Remove()
 		}
 	} else {
-		fmt.Printf("Error locating image: %s\n", err)
-		return
+		return fmt.Errorf("Error locating image: %s\n", err)
 	}
 
-	ts.Flush()
+	return ts.Flush()
+}
+
+type nukeOptions struct {
+	Force bool `long:"force" description:"Forcefully remove the image"`
+}
+
+func (no *nukeOptions) Usage() string {
+	return "[OPTIONS] <repo:tag> | <id>"
 }
 
 func init() {
-	cmd := addCommand("nuke", "<image> | <id>", "Delete an image or container", 1, nuke)
-	flForce = cmd.Bool("force", false, "Forcefully remove the image")
+	app.AddCommand("nuke", "Delete an image or container", "", &nukeOptions{})
 }
 
-func nuke(cmd *flag.FlagSet) {
-	id := utils.ExpandID(env.DIR, cmd.Arg(0))
+func (no *nukeOptions) Execute(args []string) error {
+	if err := app.CheckArity(1, 1, args); err != nil {
+		return err
+	}
+
+	id := utils.ExpandID(env.DIR, args[0])
 
 	root := path.Join(env.DIR, "containers", id)
 
@@ -74,8 +82,7 @@ func nuke(cmd *flag.FlagSet) {
 
 	if err != nil {
 		// Look for an image instead
-		nukeImage(id)
-		return
+		return nukeImage(no, id)
 	}
 
 	_, err = ioutil.ReadFile(path.Join(root, "running"))
@@ -87,9 +94,11 @@ func nuke(cmd *flag.FlagSet) {
 
 	err = os.RemoveAll(root)
 
+	if err != nil {
+		return err
+	}
+
 	fmt.Printf("Removed %s\n", id)
 
-	if err != nil {
-		panic(err)
-	}
+	return nil
 }

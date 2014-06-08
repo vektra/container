@@ -191,9 +191,7 @@ func (ts *TagStore) Flush() error {
 		return err
 	}
 
-	ioutil.WriteFile(ts.Path, data, 0644)
-
-	return nil
+	return ioutil.WriteFile(ts.Path, data, 0644)
 }
 
 // Get a repos name and returns the right reposName + tag

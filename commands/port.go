@@ -1,57 +1,61 @@
 package commands
 
 import (
-	"flag"
 	"fmt"
+
+	"github.com/vektra/components/app"
 	"github.com/vektra/container/env"
 	"github.com/vektra/container/utils"
-	"os"
 )
 
-var flTCP *string
-var flUDP *string
-
-func init() {
-	cmd := addCommand("port", "[OPTIONS] <id>", "Disable ports for a container", 1, port)
-
-	flTCP = cmd.String("t", "", "Print the tcp host port for a containers port")
-	flUDP = cmd.String("u", "", "Print the udp host port for a containers port")
+type portOptions struct {
+	TCP string `short:"t" description:"Print the tcp port for a containers port"`
+	UDP string `short:"u" description:"Print the udp port for a containers port"`
 }
 
-func port(cmd *flag.FlagSet) {
-	id := utils.ExpandID(env.DIR, cmd.Arg(0))
+func init() {
+	app.AddCommand("port", "Display ports for a container", "", &portOptions{})
+}
+
+func (po *portOptions) Usage() string {
+	return "[OPTIONS] <id>"
+}
+
+func (po *portOptions) Execute(args []string) error {
+	if err := app.CheckArity(1, 1, args); err != nil {
+		return err
+	}
+
+	id := utils.ExpandID(env.DIR, args[0])
 
 	cont, err := env.LoadContainer(env.DIR, id)
 
 	if err != nil {
-		fmt.Printf("Error loading conatiner %s: %s\n", id, err)
-		return
+		return fmt.Errorf("Error loading conatiner %s: %s\n", id, err)
 	}
 
-	if *flTCP != "" {
-		h, ok := cont.NetworkSettings.PortMapping["Tcp"][*flTCP]
+	if po.TCP != "" {
+		h, ok := cont.NetworkSettings.PortMapping["Tcp"][po.TCP]
 
 		if ok {
 			fmt.Printf("%s\n", h)
 		} else {
-			fmt.Printf("Unknown tcp port %s\n", *flTCP)
-			os.Exit(1)
+			return fmt.Errorf("Unknown tcp port %s\n", po.TCP)
 		}
 
-		return
+		return nil
 	}
 
-	if *flUDP != "" {
-		h, ok := cont.NetworkSettings.PortMapping["Udp"][*flUDP]
+	if po.UDP != "" {
+		h, ok := cont.NetworkSettings.PortMapping["Udp"][po.UDP]
 
 		if ok {
 			fmt.Printf("%s\n", h)
 		} else {
-			fmt.Printf("Unknown udp port %s\n", *flUDP)
-			os.Exit(1)
+			return fmt.Errorf("Unknown udp port %s\n", po.UDP)
 		}
 
-		return
+		return nil
 	}
 
 	for c, h := range cont.NetworkSettings.PortMapping["Tcp"] {
@@ -61,4 +65,6 @@ func port(cmd *flag.FlagSet) {
 	for c, h := range cont.NetworkSettings.PortMapping["Udp"] {
 		fmt.Printf("udp %s -> udp %s\n", c, h)
 	}
+
+	return nil
 }

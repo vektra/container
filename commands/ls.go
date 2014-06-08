@@ -1,44 +1,51 @@
 package commands
 
 import (
-	"flag"
-	"github.com/vektra/container/env"
 	"os"
 	"os/exec"
 	"path"
+
+	"github.com/vektra/components/app"
+	"github.com/vektra/container/env"
 )
 
+type lsOptions struct{}
+
 func init() {
-	addCommand("ls", "<id> [<path...>]", "List files in a container", 1, ls)
+	app.AddCommand("ls", "List files in a container", "", &lsOptions{})
 }
 
-func ls(cmd *flag.FlagSet) {
-	repo := cmd.Arg(0)
+func (lo *lsOptions) Usage() string {
+	return "<repo:tag> [dir]"
+}
+
+func (lo *lsOptions) Execute(args []string) error {
+	if err := app.CheckArity(1, 2, args); err != nil {
+		return err
+	}
+
+	repo := args[0]
 
 	dir := "."
 
-	if len(cmd.Args()) > 1 {
-		dir = cmd.Arg(1)
+	if len(args) > 1 {
+		dir = args[1]
 	}
 
 	tags, err := env.DefaultTagStore()
 
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	img, err := tags.LookupImage(repo)
 
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	e := exec.Command("ls", path.Join(env.DIR, "graph", img.ID, "layer", dir))
 	e.Stdout = os.Stdout
 
-	err = e.Run()
-
-	if err != nil {
-		panic(err)
-	}
+	return e.Run()
 }

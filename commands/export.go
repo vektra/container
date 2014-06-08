@@ -2,14 +2,15 @@ package commands
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
-	"github.com/vektra/container/env"
-	"github.com/vektra/container/utils"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
+
+	"github.com/vektra/components/app"
+	"github.com/vektra/container/env"
+	"github.com/vektra/container/utils"
 )
 
 type Exporter struct {
@@ -80,22 +81,28 @@ func (e *Exporter) pkg(img *env.Image, hash string) {
 	}
 }
 
-func init() {
-	addCommand("export", "<directory> <image>", "Export an image to disk", 2, export)
+type exportOptions struct{}
+
+func (eo *exportOptions) Usage() string {
+	return "<dir> <repo:tag>"
 }
 
-func export(cmd *flag.FlagSet) {
+func (eo *exportOptions) Execute(args []string) error {
+	if err := app.CheckArity(2, 2, args); err != nil {
+		return err
+	}
+
 	tags, err := env.DefaultTagStore()
 
 	if err != nil {
-		panic(err)
+		return err
 	}
 
-	dir := cmd.Arg(0)
+	dir := args[0]
 
 	e := &Exporter{dir, tags.Entries, tags, nil}
 
-	imageName, tagName := env.ParseRepositoryTag(cmd.Arg(1))
+	imageName, tagName := env.ParseRepositoryTag(args[1])
 
 	curTagData, err := ioutil.ReadFile(path.Join(dir, "repositories"))
 
@@ -105,7 +112,7 @@ func export(cmd *flag.FlagSet) {
 		err = json.Unmarshal(curTagData, &e.tout)
 
 		if err != nil {
-			panic(err)
+			return err
 		}
 	}
 
@@ -119,20 +126,23 @@ func export(cmd *flag.FlagSet) {
 				jsonData, err := json.Marshal(e.tout)
 
 				if err != nil {
-					panic(err)
+					return err
 				}
 
 				ioutil.WriteFile(path.Join(dir, "repositories"), jsonData, 0644)
 			} else {
-				fmt.Printf("Tag doesn't reference an image!\n")
-				os.Exit(1)
+				return fmt.Errorf("Tag doesn't reference an image!\n")
 			}
 		} else {
-			fmt.Printf("Can't find tag %s in %s\n", imageName, tagName)
-			os.Exit(1)
+			return fmt.Errorf("Can't find tag %s in %s\n", imageName, tagName)
 		}
 	} else {
-		fmt.Printf("Can't find %s\n", imageName)
-		os.Exit(1)
+		return fmt.Errorf("Can't find %s\n", imageName)
 	}
+
+	return nil
+}
+
+func init() {
+	app.AddCommand("export", "Export an image to disk", "", &exportOptions{})
 }

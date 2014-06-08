@@ -2,14 +2,15 @@ package commands
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
-	"github.com/vektra/container/env"
-	"github.com/vektra/container/utils"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
+
+	"github.com/vektra/components/app"
+	"github.com/vektra/container/env"
+	"github.com/vektra/container/utils"
 )
 
 type Importer struct {
@@ -18,16 +19,22 @@ type Importer struct {
 	sysTags *env.TagStore
 }
 
-func init() {
-	addCommand("import", "<directory> <image>", "Import an image from disk", 2, importLayer)
+type importOptions struct{}
+
+func (io *importOptions) Usage() string {
+	return "<dir> <repo:tag>"
 }
 
-func importLayer(cmd *flag.FlagSet) {
-	dir := cmd.Arg(0)
+func (io *importOptions) Execute(args []string) error {
+	if err := app.CheckArity(2, 2, args); err != nil {
+		return err
+	}
+
+	dir := args[0]
 
 	i := &Importer{dir, nil, nil}
 
-	name, tag := env.ParseRepositoryTag(cmd.Arg(1))
+	name, tag := env.ParseRepositoryTag(args[1])
 
 	fmt.Printf("Importing %s:%s...\n", name, tag)
 
@@ -36,7 +43,7 @@ func importLayer(cmd *flag.FlagSet) {
 	data, err := ioutil.ReadFile(repoPath)
 
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	i.tags = &env.TagStore{}
@@ -44,21 +51,19 @@ func importLayer(cmd *flag.FlagSet) {
 	err = json.Unmarshal(data, &i.tags)
 
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	sub := i.tags.Repositories[name]
 
 	if sub == nil {
-		fmt.Printf("No repo named %s found\n", name)
-		os.Exit(1)
+		return fmt.Errorf("No repo named %s found\n", name)
 	}
 
 	hash, ok := sub[tag]
 
 	if !ok {
-		fmt.Printf("No tag named %s found\n", tag)
-		os.Exit(1)
+		return fmt.Errorf("No tag named %s found\n", tag)
 	}
 
 	i.sysTags = &env.TagStore{}
@@ -72,7 +77,7 @@ func importLayer(cmd *flag.FlagSet) {
 		err = json.Unmarshal(sysData, &i.sysTags)
 
 		if err != nil {
-			panic(err)
+			return err
 		}
 	}
 
@@ -81,10 +86,16 @@ func importLayer(cmd *flag.FlagSet) {
 	sysData, err = json.Marshal(i.sysTags)
 
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	ioutil.WriteFile(sysPath, sysData, 0644)
+
+	return nil
+}
+
+func init() {
+	app.AddCommand("import", "Import an image from disk", "", &importOptions{})
 }
 
 func (i *Importer) alreadyExists(hash string) bool {

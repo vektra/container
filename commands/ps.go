@@ -1,14 +1,15 @@
 package commands
 
 import (
-	"flag"
 	"fmt"
-	"github.com/vektra/container/env"
 	"io/ioutil"
 	"os"
 	"path"
 	"sort"
 	"text/tabwriter"
+
+	"github.com/vektra/components/app"
+	"github.com/vektra/container/env"
 )
 
 type Containers []*env.Container
@@ -20,15 +21,21 @@ func (c Containers) Less(i, j int) bool {
 	return c[i].Created.After(c[j].Created)
 }
 
+type psOptions struct{}
+
 func init() {
-	addCommand("ps", "", "List containers", 0, ps)
+	app.AddCommand("ps", "List containers", "", &psOptions{})
 }
 
-func ps(cmd *flag.FlagSet) {
+func (po *psOptions) Execute(args []string) error {
+	if err := app.CheckArity(0, 0, args); err != nil {
+		return err
+	}
+
 	dir, err := ioutil.ReadDir(path.Join(env.DIR, "containers"))
 
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	ts, err := env.DefaultTagStore()
@@ -72,4 +79,5 @@ func ps(cmd *flag.FlagSet) {
 
 	w.Flush()
 
+	return nil
 }
